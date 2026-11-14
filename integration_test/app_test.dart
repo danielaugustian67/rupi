@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:keuangan_ai/main.dart' as app;
+import 'package:keuangan_ai/anim.dart';
 import 'package:keuangan_ai/theme.dart';
 
 Future<void> tunggu(
@@ -117,5 +118,108 @@ void main() {
       await t.pump(const Duration(milliseconds: 250));
     }
     expect(find.text(nama), findsNothing);
+
+    // 9. Ketik bebas: AI (atau parser cadangan) mengisi form
+    await ketuk(t, find.byIcon(Icons.add));
+    await t.enterText(
+      find.widgetWithText(TextField, 'contoh: makan bakso 25rb'),
+      'bonus akhir tahun 750rb',
+    );
+    await ketuk(t, find.byTooltip('Kirim'));
+    await tunggu(
+      t,
+      find.text('Jumlah (Rp)'),
+      batas: const Duration(seconds: 30),
+    );
+    final jumlah = t.widget<TextField>(
+      find.widgetWithText(TextField, 'Jumlah (Rp)'),
+    );
+    expect(jumlah.controller!.text.replaceAll(RegExp(r'\D'), ''), '750000');
+    final seg = t.widget<SegmentedButton<String>>(
+      find.byType(SegmentedButton<String>),
+    );
+    expect(seg.selected, {'masuk'}, reason: 'bonus harus jadi pemasukan');
+    final toko = t
+        .widget<TextField>(find.widgetWithText(TextField, 'Toko / keterangan'))
+        .controller!;
+    final namaAi = 'AI ${DateTime.now().millisecondsSinceEpoch % 100000}';
+    toko.text = namaAi;
+    await ketuk(t, find.widgetWithText(FilledButton, 'Simpan'));
+    await ketuk(t, find.byIcon(Icons.format_list_bulleted));
+    await ketuk(t, find.text(namaAi));
+    await ketuk(t, find.byTooltip('Hapus'));
+    await ketuk(t, find.widgetWithText(TextButton, 'Hapus'));
+    await t.pump(const Duration(seconds: 2));
+    expect(find.text(namaAi), findsNothing);
+
+    // 10. Tabungan: buat, setor, hapus
+    await ketuk(t, beranda);
+    await t.drag(find.text('Transaksi terakhir'), const Offset(0, 700));
+    await t.pump(const Duration(seconds: 1));
+    await ketuk(t, find.text('Tabungan'));
+    await ketuk(t, find.text('Tabungan baru'));
+    final namaTab = 'Tab E2E ${DateTime.now().millisecondsSinceEpoch % 1000}';
+    await t.enterText(find.widgetWithText(TextField, 'Nama'), namaTab);
+    await ketuk(t, find.text('Simpan'));
+    await ketuk(t, find.text(namaTab));
+    await ketuk(t, find.text('Setor'));
+    await t.enterText(find.widgetWithText(TextField, 'Nominal'), '100000');
+    if (t.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value ??
+        false) {
+      await ketuk(t, find.byType(CheckboxListTile)); // jangan buat transaksi
+    }
+    await ketuk(t, find.text('Simpan'));
+    await tunggu(t, find.text('Rp100.000'));
+    if (find.text('Hapus').evaluate().isEmpty)
+      await ketuk(t, find.text(namaTab));
+    await ketuk(t, find.text('Hapus'));
+    await ketuk(t, find.widgetWithText(TextButton, 'Hapus'));
+    await t.pump(const Duration(seconds: 2));
+    expect(find.text(namaTab), findsNothing);
+    await t.pageBack();
+    await t.pump(const Duration(seconds: 1));
+
+    // 11. Pinjaman: buat, catat pengembalian, hapus
+    await ketuk(t, find.byIcon(Icons.add));
+    await ketuk(t, find.text('Pinjaman'));
+    await ketuk(t, find.byType(FloatingActionButton));
+    final namaP = 'Teman E2E ${DateTime.now().millisecondsSinceEpoch % 1000}';
+    await t.enterText(find.widgetWithText(TextField, 'Nama orang'), namaP);
+    await t.enterText(find.widgetWithText(TextField, 'Nominal'), '200000');
+    await ketuk(t, find.widgetWithText(FilledButton, 'Simpan'));
+    await ketuk(t, find.text(namaP));
+    await ketuk(t, find.text('Catat pengembalian'));
+    await t.enterText(find.widgetWithText(TextField, 'Nominal'), '50000');
+    await ketuk(t, find.text('Simpan'));
+    await tunggu(t, find.text('Rp150.000'));
+    if (find.text('Hapus').evaluate().isEmpty) await ketuk(t, find.text(namaP));
+    await ketuk(t, find.text('Hapus'));
+    await ketuk(t, find.widgetWithText(TextButton, 'Hapus'));
+    await t.pump(const Duration(seconds: 2));
+    expect(find.text(namaP), findsNothing);
+    await t.pageBack();
+    await t.pump(const Duration(seconds: 1));
+
+    // 12. Chat AI menjawab
+    await ketuk(t, find.byIcon(Icons.chat_bubble_outline));
+    await t.enterText(
+      find.widgetWithText(TextField, 'Tanya soal keuanganmu…'),
+      'Halo, beri satu tips hemat singkat',
+    );
+    await ketuk(t, find.byTooltip('Kirim'));
+    await tunggu(t, find.byType(TypingDots));
+    final selesai = DateTime.now().add(const Duration(seconds: 40));
+    while (find.byType(TypingDots).evaluate().isNotEmpty &&
+        DateTime.now().isBefore(selesai)) {
+      await t.pump(const Duration(milliseconds: 250));
+    }
+    expect(find.byType(TypingDots), findsNothing, reason: 'AI tidak menjawab');
+    expect(
+      find.textContaining(
+        RegExp('tidak tersedia|terlalu lama|sudah habis|belum disetel'),
+      ),
+      findsNothing,
+      reason: 'AI membalas dengan pesan error',
+    );
   });
 }
