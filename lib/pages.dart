@@ -53,10 +53,11 @@ class ShellState extends State<Shell> {
   void initState() {
     super.initState();
     load();
-    _pengingat();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => tutorialPertamaKali(context),
-    );
+    // Izin notifikasi ditanya setelah panduan, supaya dialognya tidak menutupi.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await tutorialPertamaKali(context);
+      _pengingat();
+    });
   }
 
   Future<void> load() async {
