@@ -6,24 +6,50 @@ import 'theme.dart';
 
 SupabaseClient get db => Supabase.instance.client;
 
+// appTheme() ikut mengubah C.gelap, jadi pelacak perubahan mode terpisah.
+bool? _gelapTerakhir;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
     url: const String.fromEnvironment('SUPABASE_URL'),
     publishableKey: const String.fromEnvironment('SUPABASE_KEY'),
   );
+  await muatTema();
   runApp(
-    MaterialApp(
-      title: 'Keuangan AI',
-      debugShowCheckedModeBanner: false,
-      theme: appTheme(false),
-      darkTheme: appTheme(true),
-      // Set C.gelap sebelum subtree dibangun, ikut setelan sistem.
-      builder: (ctx, child) {
-        C.gelap = MediaQuery.platformBrightnessOf(ctx) == Brightness.dark;
-        return child!;
-      },
-      home: db.auth.currentSession == null ? const LoginPage() : const Shell(),
+    ValueListenableBuilder(
+      valueListenable: temaMode,
+      builder: (_, mode, _) => MaterialApp(
+        title: 'Keuangan AI',
+        debugShowCheckedModeBanner: false,
+        theme: appTheme(false),
+        darkTheme: appTheme(true),
+        themeMode: mode,
+        // Set C.gelap sebelum subtree dibangun.
+        builder: (ctx, child) {
+          C.gelap =
+              mode == ThemeMode.dark ||
+              (mode == ThemeMode.system &&
+                  MediaQuery.platformBrightnessOf(ctx) == Brightness.dark);
+          // Warna C.* dibaca langsung (bukan via Theme), jadi bangun ulang
+          // seluruh pohon widget saat mode berganti; halaman & state tetap.
+          if (_gelapTerakhir != null && _gelapTerakhir != C.gelap) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              void semua(Element e) {
+                e.markNeedsBuild();
+                e.visitChildren(semua);
+              }
+
+              WidgetsBinding.instance.rootElement?.visitChildren(semua);
+            });
+          }
+          _gelapTerakhir = C.gelap;
+          return child!;
+        },
+        home: db.auth.currentSession == null
+            ? const LoginPage()
+            : const Shell(),
+      ),
     ),
   );
 }

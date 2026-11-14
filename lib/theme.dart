@@ -1,21 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Pilihan tampilan user, disimpan di HP (bukan per akun).
+final temaMode = ValueNotifier(ThemeMode.system);
+
+Future<void> muatTema() async {
+  try {
+    final i = (await SharedPreferences.getInstance()).getInt('tema');
+    if (i != null && i >= 0 && i < ThemeMode.values.length) {
+      temaMode.value = ThemeMode.values[i];
+    }
+  } catch (_) {} // gagal baca: tetap ikut sistem
+}
+
+Future<void> setTema(ThemeMode m) async {
+  temaMode.value = m;
+  try {
+    await (await SharedPreferences.getInstance()).setInt('tema', m.index);
+  } catch (_) {}
+}
 
 class C {
   static const dark = Color(0xFF0C1610);
   static const lime = Color(0xFF9BE27F);
   static const green = Color(0xFF4CAF50);
+
   /// Diset dari kecerahan sistem di MaterialApp.builder; seluruh UI dibangun ulang saat berubah.
   static bool gelap = false;
-  static Color get bg => gelap ? const Color(0xFF0B110D) : const Color(0xFFF3F5F1);
+  static Color get bg =>
+      gelap ? const Color(0xFF0B110D) : const Color(0xFFF3F5F1);
   static Color get card => gelap ? const Color(0xFF16201A) : Colors.white;
-  static Color get text => gelap ? const Color(0xFFE8ECE6) : const Color(0xFF14181B);
-  static Color get muted => gelap ? const Color(0xFF9AA39C) : const Color(0xFF5B6166);
-  static Color get income => gelap ? const Color(0xFF7CCB6B) : const Color(0xFF2F7A2A);
-  static Color get expense => gelap ? const Color(0xFFF08A52) : const Color(0xFFB4501A);
-  static Color get line => gelap ? const Color(0xFF26302A) : const Color(0xFFE4E8E0);
-  static Color get track => gelap ? const Color(0xFF26302A) : const Color(0xFFEEF0EB);
+  static Color get text =>
+      gelap ? const Color(0xFFE8ECE6) : const Color(0xFF14181B);
+  static Color get muted =>
+      gelap ? const Color(0xFF9AA39C) : const Color(0xFF5B6166);
+  static Color get income =>
+      gelap ? const Color(0xFF7CCB6B) : const Color(0xFF2F7A2A);
+  static Color get expense =>
+      gelap ? const Color(0xFFF08A52) : const Color(0xFFB4501A);
+  static Color get line =>
+      gelap ? const Color(0xFF26302A) : const Color(0xFFE4E8E0);
+  static Color get track =>
+      gelap ? const Color(0xFF26302A) : const Color(0xFFEEF0EB);
+
   /// Tombol utama: hitam di mode terang, lime di mode gelap.
   static Color get btn => gelap ? lime : dark;
   static Color get onBtn => gelap ? dark : Colors.white;

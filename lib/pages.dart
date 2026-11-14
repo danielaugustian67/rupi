@@ -419,6 +419,14 @@ class _BerandaPageState extends State<BerandaPage> {
                           ),
                         ),
                         _GlassButton(
+                          icon: C.gelap
+                              ? Icons.dark_mode_outlined
+                              : Icons.light_mode_outlined,
+                          label: 'Tampilan',
+                          onTap: () => pilihTema(context),
+                        ),
+                        const SizedBox(width: 8),
+                        _GlassButton(
                           icon: Icons.logout,
                           label: 'Keluar akun',
                           onTap: s.logout,
@@ -503,10 +511,7 @@ class _BerandaPageState extends State<BerandaPage> {
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.warning_amber_rounded,
-                              color: C.expense,
-                            ),
+                            Icon(Icons.warning_amber_rounded, color: C.expense),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -988,10 +993,7 @@ class TrxTile extends StatelessWidget {
                       fontSize: 14,
                     ),
                   ),
-                  Text(
-                    kat,
-                    style: TextStyle(color: C.muted, fontSize: 12),
-                  ),
+                  Text(kat, style: TextStyle(color: C.muted, fontSize: 12)),
                 ],
               ),
             ),
@@ -1208,10 +1210,7 @@ class _Opt extends StatelessWidget {
                       fontSize: 14,
                     ),
                   ),
-                  Text(
-                    sub,
-                    style: TextStyle(color: C.muted, fontSize: 12),
-                  ),
+                  Text(sub, style: TextStyle(color: C.muted, fontSize: 12)),
                 ],
               ),
             ],
@@ -1428,4 +1427,47 @@ class _ChipLines extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Sheet pilihan tampilan: Terang / Gelap / Ikut sistem.
+void pilihTema(BuildContext context) {
+  const opsi = [
+    (ThemeMode.light, Icons.light_mode_outlined, 'Terang'),
+    (ThemeMode.dark, Icons.dark_mode_outlined, 'Gelap'),
+    (ThemeMode.system, Icons.brightness_auto_outlined, 'Ikut sistem'),
+  ];
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: C.card,
+    showDragHandle: true,
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Tampilan',
+            style: TextStyle(
+              color: C.text,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (final (m, ic, label) in opsi)
+            ListTile(
+              leading: Icon(ic, color: C.text),
+              title: Text(label, style: TextStyle(color: C.text)),
+              trailing: temaMode.value == m
+                  ? Icon(Icons.check_circle, color: C.income)
+                  : null,
+              onTap: () {
+                setTema(m);
+                Navigator.pop(ctx);
+              },
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
 }
