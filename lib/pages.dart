@@ -1,5 +1,6 @@
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
@@ -87,6 +88,7 @@ class ShellState extends State<Shell> {
 
   /// Izin notifikasi + jadwal pengingat harian & jatuh tempo pinjaman.
   Future<void> _pengingat() async {
+    if (kIsWeb) return; // notifikasi lokal tidak ada di browser
     try {
       await initNotif();
       final p = await db.from('utang_v').select().gt('sisa', 0);
@@ -471,13 +473,16 @@ class _BerandaPageState extends State<BerandaPage> {
                           () => s.openForm(tipe: 'keluar'),
                         ),
                         const SizedBox(width: 10),
-                        _Action(
-                          'Scan struk',
-                          Icons.document_scanner_outlined,
-                          const Color(0x245AA0BE),
-                          () => s.scan(ImageSource.camera),
-                        ),
-                        const SizedBox(width: 10),
+                        // ML Kit (OCR) hanya ada di Android/iOS.
+                        if (!kIsWeb) ...[
+                          _Action(
+                            'Scan struk',
+                            Icons.document_scanner_outlined,
+                            const Color(0x245AA0BE),
+                            () => s.scan(ImageSource.camera),
+                          ),
+                          const SizedBox(width: 10),
+                        ],
                         _Action(
                           'Tabungan',
                           Icons.savings_outlined,
@@ -913,19 +918,21 @@ class _TambahSheetState extends State<TambahSheet> {
               crossAxisSpacing: 10,
               childAspectRatio: 1.6,
               children: [
-                _Opt(
-                  'Scan struk',
-                  'Total terisi otomatis',
-                  Icons.document_scanner_outlined,
-                  widget.onCamera,
-                  dark: true,
-                ),
-                _Opt(
-                  'Dari galeri',
-                  'Foto struk yang ada',
-                  Icons.photo_outlined,
-                  widget.onGallery,
-                ),
+                if (!kIsWeb) ...[
+                  _Opt(
+                    'Scan struk',
+                    'Total terisi otomatis',
+                    Icons.document_scanner_outlined,
+                    widget.onCamera,
+                    dark: true,
+                  ),
+                  _Opt(
+                    'Dari galeri',
+                    'Foto struk yang ada',
+                    Icons.photo_outlined,
+                    widget.onGallery,
+                  ),
+                ],
                 _Opt(
                   'Manual',
                   'Isi form sendiri',
