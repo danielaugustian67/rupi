@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rupi: catat keuangan dengan AI</title>
+<meta name="description" content="Rupi mencatat pemasukan, pengeluaran, tabungan, dan pinjaman. Ketik bebas, AI yang merapikan. Gratis untuk Android.">
+<meta name="theme-color" content="#0C1610">
+<link rel="icon" href="icon.png">
+<meta property="og:title" content="Rupi: catat keuangan dengan AI">
+<meta property="og:description" content="Ketik “makan bakso 25rb”, AI yang mengisi. Gratis untuk Android.">
+<meta property="og:image" content="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --dark: #0C1610; --lime: #9BE27F; --text: #E8ECE6; --muted: #A9B5A6;
+    --card: rgba(255,255,255,.06); --line: rgba(255,255,255,.12);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: Sora, system-ui, sans-serif; color: var(--text); line-height: 1.6;
+    background:
+      radial-gradient(60% 45% at 78% 8%, rgba(120,200,95,.55), transparent 70%),
+      radial-gradient(45% 35% at 5% 95%, rgba(80,150,65,.35), transparent 70%),
+      linear-gradient(135deg, #1A3020, #0A120B 55%, #050906);
+    background-color: var(--dark); min-height: 100vh;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+  header { display: flex; align-items: center; gap: 12px; padding: 24px 0; }
+  header img { width: 40px; height: 40px; border-radius: 10px; }
+  header b { font-size: 20px; letter-spacing: .02em; }
+  header a { margin-left: auto; color: var(--muted); font-size: 14px; text-decoration: none; }
+  header a:hover, header a:focus-visible { color: var(--text); }
+
+  .hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 40px; align-items: center; padding: 48px 0 72px; }
+  h1 { font-size: clamp(34px, 6vw, 56px); line-height: 1.1; font-weight: 800; letter-spacing: -.02em; }
+  h1 em { font-style: normal; color: var(--lime); }
+  .lead { color: var(--muted); font-size: 18px; margin: 20px 0 32px; max-width: 34ch; }
+  .cta { display: inline-flex; align-items: center; gap: 10px; background: var(--lime); color: var(--dark);
+    font-weight: 800; font-size: 17px; padding: 16px 28px; border-radius: 999px; text-decoration: none;
+    box-shadow: 0 10px 30px rgba(155,226,127,.25); transition: transform .15s; }
+  .cta:hover { transform: translateY(-2px); }
+  .cta:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 14px; }
+
+  .demo { background: var(--card); border: 1px solid var(--line); border-radius: 28px; padding: 22px;
+    backdrop-filter: blur(8px); }
+  .demo small { color: var(--muted); font-size: 12px; font-weight: 600; }
+  .bubble { background: rgba(255,255,255,.95); color: #14181B; border-radius: 999px; padding: 12px 18px;
+    margin: 10px 0 18px; font-size: 15px; }
+  .row { display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .row span:first-child { color: var(--muted); }
+  .out { color: #F08A52; font-weight: 600; }
+
+  h2 { font-size: 26px; font-weight: 800; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .f { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 20px; }
+  .f b { display: block; margin-bottom: 6px; }
+  .f p { color: var(--muted); font-size: 14px; }
+
+  .steps { counter-reset: s; list-style: none; padding: 0; display: grid; gap: 12px; margin-top: 4px; }
+  .steps li { counter-increment: s; display: flex; gap: 14px; align-items: flex-start; color: var(--muted); }
+  .steps li::before { content: counter(s); flex: none; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--lime); color: var(--dark); font-weight: 800; display: grid; place-items: center; font-size: 14px; }
+  .steps b { color: var(--text); }
+  section { padding: 36px 0; }
+  footer { color: var(--muted); font-size: 13px; padding: 48px 0 32px; border-top: 1px solid var(--line); margin-top: 36px; }
+  footer a { color: var(--text); }
+
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; padding: 24px 0 48px; }
+    .grid { grid-template-columns: 1fr; }
+    .wrap { padding: 0 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .cta { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="icon.png" alt="">
+    <b>Rupi</b>
+    <a href="https://github.com/danielaugustian67/rupi">Kode sumber</a>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div>
+        <h1>Catat uang secepat <em>kirim chat</em>.</h1>
+        <p class="lead">Ketik “makan bakso 25rb”, AI yang mengisi jumlah, kategori, dan jenisnya. Tabungan, pinjaman, dan laporan ada di satu app.</p>
+        <a class="cta" id="unduh" href="https://github.com/danielaugustian67/rupi/releases/latest/download/rupi.apk">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14"/></svg>
+          Download untuk Android
+        </a>
+        <p class="meta" id="versi">Gratis · Android 7.0 ke atas · ±88 MB</p>
+      </div>
+      <div class="demo" aria-label="Contoh: AI mengubah ketikan jadi catatan">
+        <small>KETIK BEBAS, AI YANG ISI</small>
+        <div class="bubble">makan bakso 25rb</div>
+        <div class="row"><span>Jumlah</span><span class="out">Rp25.000</span></div>
+        <div class="row"><span>Jenis</span><span>Pengeluaran</span></div>
+        <div class="row"><span>Kategori</span><span>Makan</span></div>
+      </div>
+    </div>
+
+    <section>
+      <h2>Yang bisa dilakukan</h2>
+      <div class="grid">
+        <div class="f"><b>Ketik, ucap, atau foto</b><p>Tulis bebas, bicara lewat mikrofon, atau scan struk belanja. Totalnya terbaca sendiri.</p></div>
+        <div class="f"><b>Laporan & anggaran</b><p>Grafik per kategori, batas belanja bulanan dengan peringatan, dan ekspor CSV.</p></div>
+        <div class="f"><b>Tabungan bertarget</b><p>Buat tujuan, setor sedikit demi sedikit, dan lihat progresnya.</p></div>
+        <div class="f"><b>Pinjaman bersama</b><p>Isi email teman, lalu kalian berdua bisa melihat berapa yang sudah kembali dan sisanya.</p></div>
+        <div class="f"><b>Tanya Chat AI</b><p>“Bulan ini paling boros di mana?” AI menjawab dari catatanmu sendiri.</p></div>
+        <div class="f"><b>Update otomatis</b><p>Perbaikan masuk sendiri saat app dibuka. Tidak perlu uninstall.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Cara pasang</h2>
+      <ol class="steps">
+        <li><span><b>Ketuk Download</b> di atas dari HP Android.</span></li>
+        <li><span><b>Buka file</b> <code>rupi.apk</code> dari notifikasi atau folder Download.</span></li>
+        <li><span>Kalau diminta, <b>izinkan “Install unknown apps”</b> untuk browser-mu, lalu ketuk Install.</span></li>
+        <li><span><b>Daftar dengan email</b>, dan panduan singkat akan menunjukkan semua menunya.</span></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer>
+    Datamu tersimpan per akun dan hanya bisa dibaca olehmu. ·
+    <a href="https://github.com/danielaugustian67/rupi/releases">Semua versi</a>
+  </footer>
+</div>
+<script>
+  // Tampilkan nomor versi terbaru; kalau API gagal, teks bawaan tetap.
+  fetch('https://api.github.com/repos/danielaugustian67/rupi/releases/latest')
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      if (!d) return;
+      const a = (d.assets || []).find(x => x.name === 'rupi.apk');
+      const mb = a ? Math.round(a.size / 1048576) + ' MB' : '';
+      document.getElementById('versi').textContent =
+        'Gratis · versi ' + d.tag_name.replace(/^v/, '') + (mb ? ' · ' + mb : '') + ' · Android';
+    })
+    .catch(() => {});
+</script>
+</body>
+</html>
