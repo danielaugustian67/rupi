@@ -6,18 +6,30 @@ class C {
   static const dark = Color(0xFF0C1610);
   static const lime = Color(0xFF9BE27F);
   static const green = Color(0xFF4CAF50);
-  static const bg = Color(0xFFF3F5F1);
-  static const text = Color(0xFF14181B);
-  static const muted = Color(0xFF5B6166);
-  static const income = Color(0xFF2F7A2A);
-  static const expense = Color(0xFFB4501A);
-  static const line = Color(0xFFE4E8E0);
+  /// Diset dari kecerahan sistem di MaterialApp.builder; seluruh UI dibangun ulang saat berubah.
+  static bool gelap = false;
+  static Color get bg => gelap ? const Color(0xFF0B110D) : const Color(0xFFF3F5F1);
+  static Color get card => gelap ? const Color(0xFF16201A) : Colors.white;
+  static Color get text => gelap ? const Color(0xFFE8ECE6) : const Color(0xFF14181B);
+  static Color get muted => gelap ? const Color(0xFF9AA39C) : const Color(0xFF5B6166);
+  static Color get income => gelap ? const Color(0xFF7CCB6B) : const Color(0xFF2F7A2A);
+  static Color get expense => gelap ? const Color(0xFFF08A52) : const Color(0xFFB4501A);
+  static Color get line => gelap ? const Color(0xFF26302A) : const Color(0xFFE4E8E0);
+  static Color get track => gelap ? const Color(0xFF26302A) : const Color(0xFFEEF0EB);
+  /// Tombol utama: hitam di mode terang, lime di mode gelap.
+  static Color get btn => gelap ? lime : dark;
+  static Color get onBtn => gelap ? dark : Colors.white;
 }
 
-ThemeData appTheme() {
+ThemeData appTheme(bool gelap) {
+  C.gelap = gelap;
   final base = ThemeData(
     useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(seedColor: C.green, surface: C.bg),
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: C.green,
+      surface: C.bg,
+      brightness: gelap ? Brightness.dark : Brightness.light,
+    ),
     scaffoldBackgroundColor: C.bg,
   );
   return base.copyWith(
@@ -25,7 +37,7 @@ ThemeData appTheme() {
         .apply(bodyColor: C.text, displayColor: C.text),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: C.card,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
@@ -33,8 +45,8 @@ ThemeData appTheme() {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: C.dark,
-        foregroundColor: Colors.white,
+        backgroundColor: C.btn,
+        foregroundColor: C.onBtn,
         minimumSize: const Size.fromHeight(52),
         shape: const StadiumBorder(),
       ),

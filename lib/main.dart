@@ -16,7 +16,13 @@ Future<void> main() async {
     MaterialApp(
       title: 'Keuangan AI',
       debugShowCheckedModeBanner: false,
-      theme: appTheme(),
+      theme: appTheme(false),
+      darkTheme: appTheme(true),
+      // Set C.gelap sebelum subtree dibangun, ikut setelan sistem.
+      builder: (ctx, child) {
+        C.gelap = MediaQuery.platformBrightnessOf(ctx) == Brightness.dark;
+        return child!;
+      },
       home: db.auth.currentSession == null ? const LoginPage() : const Shell(),
     ),
   );

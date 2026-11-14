@@ -300,7 +300,7 @@ class _BottomNav extends StatelessWidget {
           height: 64,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: C.card,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Row(
@@ -320,13 +320,13 @@ class _BottomNav extends StatelessWidget {
                         shape: BoxShape.circle,
                         color: i == 2
                             ? C.green
-                            : (i == index ? C.dark : Colors.transparent),
+                            : (i == index ? C.btn : Colors.transparent),
                       ),
                       child: Icon(
                         items[i].$1,
-                        color: i == 2 || i == index
+                        color: i == 2
                             ? Colors.white
-                            : const Color(0xFF3E4448),
+                            : (i == index ? C.onBtn : C.muted),
                       ),
                     ),
                   ),
@@ -462,7 +462,8 @@ class _BerandaPageState extends State<BerandaPage> {
                         _Action(
                           'Tabungan',
                           Icons.savings_outlined,
-                          C.bg,
+                          // Selalu di atas latar glow gelap, jadi tetap terang di kedua mode.
+                          const Color(0xFFF3F5F1),
                           () async {
                             await Navigator.push(
                               context,
@@ -484,7 +485,7 @@ class _BerandaPageState extends State<BerandaPage> {
           Transform.translate(
             offset: const Offset(0, -14),
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: C.bg,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
@@ -502,7 +503,7 @@ class _BerandaPageState extends State<BerandaPage> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.warning_amber_rounded,
                               color: C.expense,
                             ),
@@ -534,7 +535,7 @@ class _BerandaPageState extends State<BerandaPage> {
                             ),
                             TextButton(
                               onPressed: () => s.setState(() => s.tab = 1),
-                              child: const Text(
+                              child: Text(
                                 'Lihat semua',
                                 style: TextStyle(
                                   color: C.income,
@@ -638,12 +639,12 @@ class _TransaksiPageState extends State<TransaksiPage> {
                     label: Text(f.$2),
                     selected: filter == f.$1,
                     showCheckmark: false,
-                    selectedColor: C.dark,
-                    backgroundColor: Colors.white,
+                    selectedColor: C.btn,
+                    backgroundColor: C.card,
                     side: BorderSide.none,
                     shape: const StadiumBorder(),
                     labelStyle: TextStyle(
-                      color: filter == f.$1 ? Colors.white : C.text,
+                      color: filter == f.$1 ? C.onBtn : C.text,
                       fontWeight: FontWeight.w600,
                     ),
                     onSelected: (_) => setState(() => filter = f.$1),
@@ -676,7 +677,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
                           ),
                           Text(
                             _subtotal(e.value),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: C.muted,
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
@@ -841,7 +842,7 @@ class _TambahSheetState extends State<TambahSheet> {
                   Container(
                     padding: const EdgeInsets.only(left: 16, right: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: C.card,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Row(
@@ -866,7 +867,7 @@ class _TambahSheetState extends State<TambahSheet> {
                           tooltip: dengar ? 'Berhenti merekam' : 'Bicara',
                           onPressed: _mic,
                           icon: dengar
-                              ? const TypingDots(color: C.expense, size: 6)
+                              ? TypingDots(color: C.expense, size: 6)
                               : const Icon(Icons.mic_none, color: C.dark),
                         ),
                         IconButton.filled(
@@ -955,18 +956,18 @@ class TrxTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         height: 62,
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xFFF0F2EE))),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: C.line)),
         ),
         child: Row(
           children: [
             CircleAvatar(
               radius: 22,
-              backgroundColor: _bg[kat] ?? const Color(0xFFEEF0EB),
+              backgroundColor: _bg[kat] ?? C.track,
               child: Text(
                 ini,
-                style: const TextStyle(
-                  color: C.dark,
+                style: TextStyle(
+                  color: _bg[kat] != null ? C.dark : C.text,
                   fontWeight: FontWeight.w800,
                   fontSize: 13,
                 ),
@@ -989,7 +990,7 @@ class TrxTile extends StatelessWidget {
                   ),
                   Text(
                     kat,
-                    style: const TextStyle(color: C.muted, fontSize: 12),
+                    style: TextStyle(color: C.muted, fontSize: 12),
                   ),
                 ],
               ),
@@ -1018,7 +1019,7 @@ class BulanSwitcher extends StatelessWidget {
     final s = shell;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: C.card,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: const Color(0xFFDDE1D9)),
       ),
@@ -1059,7 +1060,7 @@ class SegeraPage extends StatelessWidget {
               judul,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
             ),
-            const Expanded(
+            Expanded(
               child: Center(
                 child: Text('Segera hadir', style: TextStyle(color: C.muted)),
               ),
@@ -1078,7 +1079,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: C.card,
       borderRadius: BorderRadius.circular(22),
     ),
     child: child,
@@ -1088,7 +1089,7 @@ class _Card extends StatelessWidget {
 class _Empty extends StatelessWidget {
   const _Empty();
   @override
-  Widget build(BuildContext context) => const Padding(
+  Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.symmetric(vertical: 28),
     child: Center(
       child: Text(
@@ -1177,7 +1178,7 @@ class _Opt extends StatelessWidget {
   Widget build(BuildContext context) => Opacity(
     opacity: onTap == null ? 0.5 : 1,
     child: Material(
-      color: Colors.white,
+      color: C.card,
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -1209,7 +1210,7 @@ class _Opt extends StatelessWidget {
                   ),
                   Text(
                     sub,
-                    style: const TextStyle(color: C.muted, fontSize: 12),
+                    style: TextStyle(color: C.muted, fontSize: 12),
                   ),
                 ],
               ),

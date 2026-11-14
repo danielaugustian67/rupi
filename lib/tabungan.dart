@@ -144,8 +144,8 @@ class _TabunganPageState extends State<TabunganPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: C.dark,
-        foregroundColor: Colors.white,
+        backgroundColor: C.btn,
+        foregroundColor: C.onBtn,
         onPressed: () => _form(),
         icon: const Icon(Icons.add),
         label: const Text('Tabungan baru'),
@@ -187,7 +187,7 @@ class _TabunganPageState extends State<TabunganPage> {
                 child: Center(child: TypingDots(color: C.green)),
               )
             else if (rows.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(32),
                 child: Center(
                   child: Text(
@@ -221,7 +221,7 @@ class _TabTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: Colors.white,
+        color: C.card,
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
@@ -262,7 +262,7 @@ class _TabTile extends StatelessWidget {
                     p >= 1
                         ? 'Target ${rp(row['target'] as num)} tercapai 🎉'
                         : '${(p * 100).floor()}% dari ${rp(row['target'] as num)}',
-                    style: const TextStyle(color: C.muted, fontSize: 12),
+                    style: TextStyle(color: C.muted, fontSize: 12),
                   ),
                 ],
               ],
@@ -443,13 +443,13 @@ class _DetailState extends State<_Detail> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: C.card,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Saldo', style: TextStyle(color: C.muted)),
+                  Text('Saldo', style: TextStyle(color: C.muted)),
                   AnimatedRp(
                     row['saldo'] as num,
                     style: const TextStyle(
@@ -467,7 +467,7 @@ class _DetailState extends State<_Detail> {
                     const SizedBox(height: 6),
                     Text(
                       '${(p * 100).floor()}% dari target ${rp(row['target'] as num)}',
-                      style: const TextStyle(color: C.muted, fontSize: 12),
+                      style: TextStyle(color: C.muted, fontSize: 12),
                     ),
                   ],
                 ],
@@ -506,7 +506,7 @@ class _DetailState extends State<_Detail> {
                 child: Center(child: TypingDots(color: C.green)),
               )
             else if (isi.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text(
                   'Belum ada setoran.',

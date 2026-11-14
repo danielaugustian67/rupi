@@ -7,9 +7,9 @@ import 'theme.dart';
 
 /// Tiga titik yang naik-turun bergantian: "AI sedang berpikir".
 class TypingDots extends StatefulWidget {
-  final Color color;
+  final Color? color;
   final double size;
-  const TypingDots({super.key, this.color = C.muted, this.size = 8});
+  const TypingDots({super.key, this.color, this.size = 8});
   @override
   State<TypingDots> createState() => _TypingDotsState();
 }
@@ -52,7 +52,7 @@ class _TypingDotsState extends State<TypingDots>
                           width: widget.size,
                           height: widget.size,
                           decoration: BoxDecoration(
-                            color: widget.color,
+                            color: widget.color ?? C.muted,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -104,7 +104,7 @@ class AnimatedBar extends StatelessWidget {
         value: v,
         minHeight: height,
         color: color,
-        backgroundColor: const Color(0xFFEEF0EB),
+        backgroundColor: C.track,
       ),
     ),
   );

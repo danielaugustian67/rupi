@@ -198,7 +198,7 @@ class _ChatPageState extends State<ChatPage> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Material(
-                            color: Colors.white,
+                            color: C.card,
                             borderRadius: BorderRadius.circular(16),
                             child: ListTile(
                               shape: RoundedRectangleBorder(
@@ -234,7 +234,7 @@ class _ChatPageState extends State<ChatPage> {
             padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: C.card,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Row(

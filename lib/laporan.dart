@@ -143,7 +143,7 @@ class LaporanPage extends StatelessWidget {
               child: SizedBox(
                 height: 120,
                 child: maxHari == 0
-                    ? const Center(
+                    ? Center(
                         child: Text(
                           'Belum ada pengeluaran',
                           style: TextStyle(color: C.muted),
@@ -185,7 +185,7 @@ class LaporanPage extends StatelessWidget {
             _Panel(
               judul: 'Pengeluaran per kategori',
               child: kat.isEmpty
-                  ? const Padding(
+                  ? Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: Center(
                         child: Text(
@@ -398,7 +398,7 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: C.card,
       borderRadius: BorderRadius.circular(22),
     ),
     child: Column(
@@ -412,7 +412,7 @@ class _Panel extends StatelessWidget {
         child,
         if (footer != null) ...[
           const SizedBox(height: 10),
-          Text(footer!, style: const TextStyle(color: C.muted, fontSize: 12)),
+          Text(footer!, style: TextStyle(color: C.muted, fontSize: 12)),
         ],
       ],
     ),
@@ -447,7 +447,7 @@ class _KatBar extends StatelessWidget {
               ),
               Text(
                 '${(persen * 100).round()}%  ',
-                style: const TextStyle(color: C.muted, fontSize: 12),
+                style: TextStyle(color: C.muted, fontSize: 12),
               ),
               Text(
                 rp(jumlah),
@@ -462,7 +462,7 @@ class _KatBar extends StatelessWidget {
               value: persen,
               minHeight: 8,
               color: warna,
-              backgroundColor: const Color(0xFFEEF0EB),
+              backgroundColor: C.track,
             ),
           ),
         ],

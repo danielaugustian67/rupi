@@ -243,8 +243,8 @@ class _FormPageState extends State<FormPage> {
           if (jenis != 'utang_baru')
             SegmentedButton<String>(
               style: SegmentedButton.styleFrom(
-                selectedBackgroundColor: C.dark,
-                selectedForegroundColor: Colors.white,
+                selectedBackgroundColor: C.btn,
+                selectedForegroundColor: C.onBtn,
               ),
               segments: const [
                 ButtonSegment(value: 'keluar', label: Text('▼ Pengeluaran')),
@@ -281,7 +281,7 @@ class _FormPageState extends State<FormPage> {
             ),
           const SizedBox(height: 12),
           Material(
-            color: Colors.white,
+            color: C.card,
             borderRadius: BorderRadius.circular(16),
             child: ListTile(
               shape: RoundedRectangleBorder(

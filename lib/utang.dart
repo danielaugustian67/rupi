@@ -132,8 +132,8 @@ class _UtangPageState extends State<UtangPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: C.dark,
-        foregroundColor: Colors.white,
+        backgroundColor: C.btn,
+        foregroundColor: C.onBtn,
         onPressed: () => _form(),
         icon: const Icon(Icons.add),
         label: Text(arah == 'piutang' ? 'Dipinjamkan' : 'Pinjamanku'),
@@ -167,8 +167,8 @@ class _UtangPageState extends State<UtangPage> {
               selected: {arah},
               showSelectedIcon: false,
               style: SegmentedButton.styleFrom(
-                selectedBackgroundColor: C.dark,
-                selectedForegroundColor: Colors.white,
+                selectedBackgroundColor: C.btn,
+                selectedForegroundColor: C.onBtn,
               ),
               onSelectionChanged: (v) => setState(() => arah = v.first),
             ),
@@ -186,7 +186,7 @@ class _UtangPageState extends State<UtangPage> {
                     arah == 'piutang'
                         ? 'Belum ada yang meminjam darimu.'
                         : 'Kamu belum punya pinjaman.',
-                    style: const TextStyle(color: C.muted),
+                    style: TextStyle(color: C.muted),
                   ),
                 ),
               )
@@ -214,13 +214,13 @@ class _Ringkas extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: C.card,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: C.muted, fontSize: 12)),
+          Text(label, style: TextStyle(color: C.muted, fontSize: 12)),
           const SizedBox(height: 4),
           AnimatedRp(
             v,
@@ -254,7 +254,7 @@ class _UtangTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: Colors.white,
+        color: C.card,
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
@@ -276,7 +276,7 @@ class _UtangTile extends StatelessWidget {
                       ),
                     ),
                     if (bersama)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(right: 6),
                         child: Icon(
                           Icons.people_alt_outlined,
@@ -295,7 +295,7 @@ class _UtangTile extends StatelessWidget {
                           color: const Color(0xFFDDF3D2),
                           borderRadius: BorderRadius.circular(99),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Lunas',
                           style: TextStyle(
                             fontSize: 11,
@@ -482,26 +482,26 @@ class _DetailState extends State<_Detail> {
             if (!punyaku)
               Text(
                 'Dibagikan oleh ${row['pemilik_email']}',
-                style: const TextStyle(color: C.muted, fontSize: 12),
+                style: TextStyle(color: C.muted, fontSize: 12),
               )
             else if (row['pihak_email'] != null)
               Text(
                 'Dibagikan ke ${row['pihak_email']}',
-                style: const TextStyle(color: C.muted, fontSize: 12),
+                style: TextStyle(color: C.muted, fontSize: 12),
               ),
             if ((row['catatan'] ?? '').toString().isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   '${row['catatan']}',
-                  style: const TextStyle(color: C.muted),
+                  style: TextStyle(color: C.muted),
                 ),
               ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: C.card,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
@@ -541,7 +541,7 @@ class _DetailState extends State<_Detail> {
                 child: Center(child: TypingDots(color: C.green)),
               )
             else if (bayar.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text(
                   'Belum ada pengembalian.',
@@ -555,7 +555,7 @@ class _DetailState extends State<_Detail> {
                   index: i,
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const CircleAvatar(
+                    leading: CircleAvatar(
                       backgroundColor: Color(0xFFDDF3D2),
                       child: Icon(Icons.check, color: C.income),
                     ),
@@ -619,7 +619,7 @@ class _Angka extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: C.muted, fontSize: 12)),
+        Text(label, style: TextStyle(color: C.muted, fontSize: 12)),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
@@ -718,8 +718,8 @@ class _UtangFormState extends State<_UtangForm> {
                 selected: {arah},
                 showSelectedIcon: false,
                 style: SegmentedButton.styleFrom(
-                  selectedBackgroundColor: C.dark,
-                  selectedForegroundColor: Colors.white,
+                  selectedBackgroundColor: C.btn,
+                  selectedForegroundColor: C.onBtn,
                 ),
                 onSelectionChanged: (v) => setState(() => arah = v.first),
               ),
@@ -790,7 +790,7 @@ class _UtangFormState extends State<_UtangForm> {
                 ],
               ),
               if (err != null)
-                Text(err!, style: const TextStyle(color: C.expense)),
+                Text(err!, style: TextStyle(color: C.expense)),
               const SizedBox(height: 8),
               FilledButton(onPressed: _simpan, child: const Text('Simpan')),
             ],
