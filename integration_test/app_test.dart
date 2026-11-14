@@ -55,7 +55,21 @@ void main() {
       await ketuk(t, find.text('Masuk').last);
     }
 
-    // 2. Beranda
+    // 2. Panduan pertama kali (akun/HP baru): geser sampai habis
+    final lanjut = find.text('Lanjut');
+    final akhirP = DateTime.now().add(const Duration(seconds: 8));
+    // Panduan muncul sesaat setelah Beranda, jadi tunggu panduannya sendiri.
+    while (lanjut.evaluate().isEmpty && DateTime.now().isBefore(akhirP)) {
+      await t.pump(const Duration(milliseconds: 250));
+    }
+    if (lanjut.evaluate().isNotEmpty) {
+      for (var k = 0; k < 4; k++) {
+        await ketuk(t, lanjut);
+      }
+      await ketuk(t, find.text('Mulai'));
+    }
+
+    // Beranda
     await tunggu(t, find.text('RUPI'));
     await tunggu(t, find.text('Transaksi terakhir'));
 

@@ -15,6 +15,7 @@ import 'receipt.dart' show parseWithAi;
 import 'notif.dart';
 import 'tabungan.dart';
 import 'theme.dart';
+import 'tutorial.dart';
 import 'utang.dart' show UtangPage, namaLawan;
 
 typedef Trx = Map<String, dynamic>;
@@ -53,6 +54,9 @@ class ShellState extends State<Shell> {
     super.initState();
     load();
     _pengingat();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => tutorialPertamaKali(context),
+    );
   }
 
   Future<void> load() async {
@@ -418,6 +422,12 @@ class _BerandaPageState extends State<BerandaPage> {
                             ],
                           ),
                         ),
+                        _GlassButton(
+                          icon: Icons.help_outline,
+                          label: 'Panduan',
+                          onTap: () => bukaTutorial(context),
+                        ),
+                        const SizedBox(width: 8),
                         _GlassButton(
                           icon: C.gelap
                               ? Icons.dark_mode_outlined

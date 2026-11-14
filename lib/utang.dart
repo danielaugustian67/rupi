@@ -789,8 +789,7 @@ class _UtangFormState extends State<_UtangForm> {
                     ),
                 ],
               ),
-              if (err != null)
-                Text(err!, style: TextStyle(color: C.expense)),
+              if (err != null) Text(err!, style: TextStyle(color: C.expense)),
               const SizedBox(height: 8),
               FilledButton(onPressed: _simpan, child: const Text('Simpan')),
             ],
