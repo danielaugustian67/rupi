@@ -20,7 +20,7 @@ Future<void> main() async {
     ValueListenableBuilder(
       valueListenable: temaMode,
       builder: (_, mode, _) => MaterialApp(
-        title: 'Keuangan AI',
+        title: 'Rupi',
         debugShowCheckedModeBanner: false,
         theme: appTheme(false),
         darkTheme: appTheme(true),
@@ -360,7 +360,7 @@ class _HeroCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Keuangan AI',
+                    'Rupi',
                     style: TextStyle(
                       color: Color(0xFF24361F),
                       fontSize: 13,

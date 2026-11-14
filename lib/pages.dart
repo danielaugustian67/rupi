@@ -1350,7 +1350,7 @@ class _BankCard extends StatelessWidget {
                           const Padding(
                             padding: EdgeInsets.only(right: 8),
                             child: Text(
-                              'KEUANGAN AI',
+                              'RUPI',
                               style: TextStyle(
                                 color: ink,
                                 fontSize: 11,
