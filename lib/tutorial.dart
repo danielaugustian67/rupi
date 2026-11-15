@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'theme.dart';
 
-const _kunci = 'tutorial_v1';
+const _kunci = 'tutorial_v2'; // naik versi: panduan menu custom baru
 
 /// Langkah panduan: (ikon, judul, isi).
 const langkahTutorial = [
@@ -26,10 +26,11 @@ const langkahTutorial = [
         'Laporan menampilkan grafik, batas anggaran per kategori, dan ekspor CSV.',
   ),
   (
-    Icons.savings_outlined,
-    'Tabungan & Pinjaman',
-    'Buat target tabungan lalu setor sedikit demi sedikit. Di Pinjaman, isi email '
-        'teman supaya kalian berdua bisa melihat sisa yang belum kembali.',
+    Icons.dashboard_customize_outlined,
+    'Menu buatanmu sendiri',
+    'Buat menu seperti "Bill Kakak", "Tabungan Liburan", atau "Pinjaman Budi". '
+        'Pilih sendiri: ceklis lunas, tenggat, foto bukti. Undang teman pakai '
+        'kodenya supaya kalian melihat isi yang sama.',
   ),
   (
     Icons.chat_bubble_outline,

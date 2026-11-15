@@ -12,15 +12,15 @@ const _detail = NotificationDetails(
   android: AndroidNotificationDetails(
     'pengingat',
     'Pengingat',
-    channelDescription: 'Pengingat catat keuangan & jatuh tempo pinjaman',
+    channelDescription: 'Pengingat catat keuangan & tenggat menu',
     importance: Importance.high,
   ),
   iOS: DarwinNotificationDetails(),
 );
 
-/// ID notifikasi: 1 = pengingat harian, 1000+id = jatuh tempo pinjaman.
+/// ID notifikasi: 1 = pengingat harian, 1000+id = tenggat item menu.
 const _idHarian = 1;
-int idTempo(int utangId) => 1000 + utangId;
+int idTempo(int itemId) => 1000 + itemId;
 
 /// Waktu notifikasi jatuh tempo: jam 09:00 pada [tempo], atau null kalau sudah lewat.
 DateTime? waktuTempo(String tempo, DateTime now) {
@@ -66,23 +66,23 @@ Future<void> _harian() async {
   );
 }
 
-/// Jadwalkan ulang pengingat jatuh tempo untuk pinjaman yang masih ada sisa.
-Future<void> jadwalTempo(List<Map<String, dynamic>> pinjaman) async {
+/// Jadwalkan ulang pengingat tenggat untuk item menu yang belum lunas.
+Future<void> jadwalTempo(List<Map<String, dynamic>> items) async {
   if (!_siap) return;
   final pending = await _plugin.pendingNotificationRequests();
   for (final p in pending) {
     if (p.id >= 1000) await _plugin.cancel(id: p.id);
   }
   final now = DateTime.now();
-  for (final u in pinjaman) {
-    final tempo = u['jatuh_tempo'] as String?;
-    if (tempo == null || (u['sisa'] as num) <= 0) continue;
+  for (final u in items) {
+    final tempo = u['tenggat'] as String?;
+    if (tempo == null) continue;
     final w = waktuTempo(tempo, now);
     if (w == null) continue;
     await _plugin.zonedSchedule(
       id: idTempo((u['id'] as num).toInt()),
-      title: 'Pinjaman jatuh tempo hari ini',
-      body: '${u['nama']}: sisa ${rp(u['sisa'] as num)}',
+      title: 'Tenggat hari ini',
+      body: '${u['judul']}: ${rp(u['nominal'] as num)}',
       scheduledDate: tz.TZDateTime.from(w, tz.local),
       notificationDetails: _detail,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

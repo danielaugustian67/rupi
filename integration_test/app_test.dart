@@ -96,15 +96,15 @@ void main() {
     await ketuk(t, find.byIcon(Icons.chat_bubble_outline));
     await t.pump(const Duration(seconds: 2));
 
-    // 6. Halaman Tabungan & Pinjaman
+    // 6. Halaman Menu (dari Beranda & tombol +) dengan kode teman
     await ketuk(t, beranda);
-    await ketuk(t, find.text('Tabungan'));
-    await tunggu(t, find.text('Tabungan baru'));
+    await ketuk(t, find.text('Menu').first);
+    await tunggu(t, find.text('Kode temanmu'));
     await t.pageBack();
     await t.pump(const Duration(seconds: 1));
     await ketuk(t, find.byIcon(Icons.add));
-    await ketuk(t, find.text('Pinjaman'));
-    await tunggu(t, find.text('Dipinjamkan'));
+    await ketuk(t, find.text('Menu').last);
+    await tunggu(t, find.text('Menu baru'));
     await t.pageBack();
     await t.pump(const Duration(seconds: 1));
 
@@ -166,51 +166,60 @@ void main() {
     await t.pump(const Duration(seconds: 2));
     expect(find.text(namaAi), findsNothing);
 
-    // 10. Tabungan: buat, setor, hapus
+    // 10. Menu custom: buat, AI memasukkan item, ceklis lunas, hapus
+    final namaMenu = 'Bill E2E ${DateTime.now().millisecondsSinceEpoch % 1000}';
     await ketuk(t, beranda);
     await t.drag(find.text('Transaksi terakhir'), const Offset(0, 700));
     await t.pump(const Duration(seconds: 1));
-    await ketuk(t, find.text('Tabungan'));
-    await ketuk(t, find.text('Tabungan baru'));
-    final namaTab = 'Tab E2E ${DateTime.now().millisecondsSinceEpoch % 1000}';
-    await t.enterText(find.widgetWithText(TextField, 'Nama'), namaTab);
+    await ketuk(t, find.text('Menu').first);
+    await ketuk(t, find.text('Menu baru'));
+    await t.enterText(find.widgetWithText(TextField, 'Nama menu'), namaMenu);
     await ketuk(t, find.text('Simpan'));
-    await ketuk(t, find.text(namaTab));
-    await ketuk(t, find.text('Setor'));
-    await t.enterText(find.widgetWithText(TextField, 'Nominal'), '100000');
-    if (t.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value ??
-        false) {
-      await ketuk(t, find.byType(CheckboxListTile)); // jangan buat transaksi
-    }
-    await ketuk(t, find.text('Simpan'));
-    await tunggu(t, find.text('Rp100.000'));
-    if (find.text('Hapus').evaluate().isEmpty)
-      await ketuk(t, find.text(namaTab));
-    await ketuk(t, find.text('Hapus'));
-    await ketuk(t, find.widgetWithText(TextButton, 'Hapus'));
-    await t.pump(const Duration(seconds: 2));
-    expect(find.text(namaTab), findsNothing);
+    await tunggu(t, find.text('Belum lunas')); // halaman menu terbuka
+    // Tambah manual
+    await ketuk(t, find.text('Tambah'));
+    await t.enterText(find.widgetWithText(TextField, 'Nominal (Rp)'), '75000');
+    await t.enterText(find.widgetWithText(TextField, 'Judul'), 'Pulsa');
+    await ketuk(t, find.widgetWithText(FilledButton, 'Simpan'));
+    await tunggu(t, find.text('Pulsa'));
+    // Ceklis lunas tanpa mencatat transaksi
+    await ketuk(t, find.byTooltip('Tandai lunas'));
+    await ketuk(t, find.text('Lunas saja'));
+    await tunggu(t, find.byIcon(Icons.check_circle_rounded));
+    await t.pageBack();
+    await t.pump(const Duration(seconds: 1));
     await t.pageBack();
     await t.pump(const Duration(seconds: 1));
 
-    // 11. Pinjaman: buat, catat pengembalian, hapus
+    // AI: kalimat yang menyebut nama menu masuk ke menu itu
     await ketuk(t, find.byIcon(Icons.add));
-    await ketuk(t, find.text('Pinjaman'));
-    await ketuk(t, find.byType(FloatingActionButton));
-    final namaP = 'Teman E2E ${DateTime.now().millisecondsSinceEpoch % 1000}';
-    await t.enterText(find.widgetWithText(TextField, 'Nama orang'), namaP);
-    await t.enterText(find.widgetWithText(TextField, 'Nominal'), '200000');
+    await t.enterText(
+      find.widgetWithText(TextField, 'contoh: makan bakso 25rb'),
+      '${namaMenu.toLowerCase()} sepatu 300rb',
+    );
+    await ketuk(t, find.byTooltip('Kirim'));
+    await tunggu(
+      t,
+      find.text('Nominal (Rp)'),
+      batas: const Duration(seconds: 30),
+    );
+    expect(find.text(namaMenu), findsOneWidget, reason: 'AI salah pilih menu');
+    final nominalAi = t.widget<TextField>(
+      find.widgetWithText(TextField, 'Nominal (Rp)'),
+    );
+    expect(nominalAi.controller!.text.replaceAll(RegExp(r'\D'), ''), '300000');
     await ketuk(t, find.widgetWithText(FilledButton, 'Simpan'));
-    await ketuk(t, find.text(namaP));
-    await ketuk(t, find.text('Catat pengembalian'));
-    await t.enterText(find.widgetWithText(TextField, 'Nominal'), '50000');
-    await ketuk(t, find.text('Simpan'));
-    await tunggu(t, find.text('Rp150.000'));
-    if (find.text('Hapus').evaluate().isEmpty) await ketuk(t, find.text(namaP));
-    await ketuk(t, find.text('Hapus'));
+
+    // Buka menunya, cek total belum lunas, lalu hapus menu
+    await ketuk(t, beranda);
+    await ketuk(t, find.text('Menu').first);
+    await ketuk(t, find.text(namaMenu));
+    await tunggu(t, find.text('Rp300.000'));
+    await ketuk(t, find.byTooltip('Lainnya'));
+    await ketuk(t, find.text('Hapus menu'));
     await ketuk(t, find.widgetWithText(TextButton, 'Hapus'));
     await t.pump(const Duration(seconds: 2));
-    expect(find.text(namaP), findsNothing);
+    expect(find.text(namaMenu), findsNothing);
     await t.pageBack();
     await t.pump(const Duration(seconds: 1));
 

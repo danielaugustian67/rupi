@@ -4,7 +4,6 @@ import 'format.dart';
 import 'main.dart' show db;
 import 'receipt.dart' show findTotal;
 import 'theme.dart';
-import 'utang.dart' show arahKu, namaLawan, rencanaBayar;
 
 const kategoriList = [
   'makan',
@@ -48,10 +47,6 @@ class _FormPageState extends State<FormPage> {
   late String tipe = widget.tipe;
   DateTime tanggal = DateTime.now();
   bool busy = false;
-  // Dari AI: 'biasa' | 'utang_baru' | 'pelunasan'; arah 'utang' (aku berutang) | 'piutang'.
-  String jenis = 'biasa';
-  String? nama, arah;
-  bool kurangiUtang = true;
 
   @override
   void initState() {
@@ -87,14 +82,6 @@ class _FormPageState extends State<FormPage> {
         if (ai['toko'] is String) toko.text = ai['toko'];
         if (kategoriList.contains(ai['kategori'])) kategori = ai['kategori'];
         if (ai['tipe'] == 'masuk' || ai['tipe'] == 'keluar') tipe = ai['tipe'];
-        if (ai['jenis'] == 'utang_baru' || ai['jenis'] == 'pelunasan') {
-          if (ai['arah'] == 'utang' || ai['arah'] == 'piutang') {
-            jenis = ai['jenis'];
-            arah = ai['arah'];
-            final nm = ai['nama'];
-            nama = nm is String && nm.trim().isNotEmpty ? nm.trim() : null;
-          }
-        }
         if (jumlah.text.isEmpty && ai['total'] is num) {
           jumlah.text = '${(ai['total'] as num).round()}';
         }
@@ -126,25 +113,11 @@ class _FormPageState extends State<FormPage> {
       'tanggal': ymd(tanggal),
     };
     setState(() => busy = true);
-    String? info;
     try {
       final r = widget.row;
-      if (r == null && jenis == 'utang_baru') {
-        await db.from('utang').insert({
-          'nama': nama ?? data['toko'],
-          'arah': arah,
-          'jumlah': n,
-          'catatan': widget.sourceText,
-        });
-        info = 'Tersimpan di Pinjaman';
-      } else {
-        r == null
-            ? await db.from('trx').insert(data)
-            : await db.from('trx').update(data).eq('id', r['id']);
-        if (r == null && jenis == 'pelunasan' && kurangiUtang) {
-          info = await _kurangiUtang(n);
-        }
-      }
+      r == null
+          ? await db.from('trx').insert(data)
+          : await db.from('trx').update(data).eq('id', r['id']);
     } catch (e) {
       // Jangan tutup form kalau gagal simpan, supaya isian tidak hilang.
       if (mounted) {
@@ -153,28 +126,7 @@ class _FormPageState extends State<FormPage> {
       }
       return;
     }
-    if (info != null) _toast(info);
     if (mounted) Navigator.pop(context, true);
-  }
-
-  /// Pelunasan: potong utang/piutang yang belum lunas atas nama yang sama, terlama dulu.
-  Future<String> _kurangiUtang(int bayar) async {
-    // Termasuk pinjaman yang dibagikan orang lain (arahnya dibalik di arahKu).
-    final semua = await db
-        .from('utang_v')
-        .select()
-        .gt('sisa', 0)
-        .order('created_at');
-    final cari = nama?.toLowerCase();
-    final open = semua
-        .where((u) => arahKu(u) == arah)
-        .where((u) => cari == null || namaLawan(u).toLowerCase().contains(cari))
-        .toList();
-    if (open.isEmpty) {
-      return 'Transaksi tersimpan. Tidak ada pinjaman ${nama ?? ''} yang belum selesai.';
-    }
-    await db.from('utang_bayar').insert(rencanaBayar(open, bayar));
-    return 'Transaksi tersimpan & pinjaman ${nama ?? ''} diperbarui';
   }
 
   Future<void> _delete() async {
@@ -229,31 +181,19 @@ class _FormPageState extends State<FormPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (widget.row == null && jenis != 'biasa') ...[
-            _UtangInfo(
-              jenis: jenis,
-              nama: nama,
-              arah: arah!,
-              kurangi: kurangiUtang,
-              onKurangi: (v) => setState(() => kurangiUtang = v),
-              onBukan: () => setState(() => jenis = 'biasa'),
+          SegmentedButton<String>(
+            style: SegmentedButton.styleFrom(
+              selectedBackgroundColor: C.btn,
+              selectedForegroundColor: C.onBtn,
             ),
-            const SizedBox(height: 12),
-          ],
-          if (jenis != 'utang_baru')
-            SegmentedButton<String>(
-              style: SegmentedButton.styleFrom(
-                selectedBackgroundColor: C.btn,
-                selectedForegroundColor: C.onBtn,
-              ),
-              segments: const [
-                ButtonSegment(value: 'keluar', label: Text('▼ Pengeluaran')),
-                ButtonSegment(value: 'masuk', label: Text('▲ Pemasukan')),
-              ],
-              selected: {tipe},
-              showSelectedIcon: false,
-              onSelectionChanged: (s) => setState(() => tipe = s.first),
-            ),
+            segments: const [
+              ButtonSegment(value: 'keluar', label: Text('▼ Pengeluaran')),
+              ButtonSegment(value: 'masuk', label: Text('▲ Pemasukan')),
+            ],
+            selected: {tipe},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) => setState(() => tipe = s.first),
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: jumlah,
@@ -267,18 +207,17 @@ class _FormPageState extends State<FormPage> {
             decoration: const InputDecoration(labelText: 'Toko / keterangan'),
           ),
           const SizedBox(height: 12),
-          if (jenis != 'utang_baru')
-            DropdownButtonFormField<String>(
-              // key: dropdown ikut berubah saat AI mengganti kategori.
-              key: ValueKey(kategori),
-              initialValue: kategori,
-              decoration: const InputDecoration(labelText: 'Kategori'),
-              items: [
-                for (final k in kategoriList)
-                  DropdownMenuItem(value: k, child: Text(k)),
-              ],
-              onChanged: (v) => setState(() => kategori = v ?? kategori),
-            ),
+          DropdownButtonFormField<String>(
+            // key: dropdown ikut berubah saat AI mengganti kategori.
+            key: ValueKey(kategori),
+            initialValue: kategori,
+            decoration: const InputDecoration(labelText: 'Kategori'),
+            items: [
+              for (final k in kategoriList)
+                DropdownMenuItem(value: k, child: Text(k)),
+            ],
+            onChanged: (v) => setState(() => kategori = v ?? kategori),
+          ),
           const SizedBox(height: 12),
           Material(
             color: C.card,
@@ -296,81 +235,13 @@ class _FormPageState extends State<FormPage> {
           const SizedBox(height: 24),
           FilledButton(
             onPressed: busy ? null : _save,
-            child: Text(
-              jenis == 'utang_baru' ? 'Simpan ke Pinjaman' : 'Simpan',
-            ),
+            child: const Text('Simpan'),
           ),
           if (widget.sourceText.isNotEmpty)
             ExpansionTile(
               title: Text(widget.isReceipt ? 'Teks hasil scan' : 'Teks asli'),
               children: [Text(widget.sourceText)],
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UtangInfo extends StatelessWidget {
-  final String jenis, arah;
-  final String? nama;
-  final bool kurangi;
-  final ValueChanged<bool> onKurangi;
-  final VoidCallback onBukan;
-  const _UtangInfo({
-    required this.jenis,
-    required this.nama,
-    required this.arah,
-    required this.kurangi,
-    required this.onKurangi,
-    required this.onBukan,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final siapa = nama ?? 'seseorang';
-    final judul = jenis == 'utang_baru'
-        ? (arah == 'piutang'
-              ? '$siapa meminjam darimu'
-              : 'Kamu meminjam dari $siapa')
-        : (arah == 'piutang'
-              ? '$siapa mengembalikan pinjaman'
-              : 'Kamu mengembalikan pinjaman ke $siapa');
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 6, 6),
-      decoration: BoxDecoration(
-        gradient: limeCard,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'AI: catatan pinjaman terdeteksi',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            judul,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-          if (jenis == 'pelunasan')
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: kurangi,
-              onChanged: onKurangi,
-              title: Text(
-                'Perbarui catatan pinjaman $siapa juga',
-                style: const TextStyle(fontSize: 13),
-              ),
-            ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: onBukan,
-              child: const Text('Bukan, transaksi biasa'),
-            ),
-          ),
         ],
       ),
     );

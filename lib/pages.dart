@@ -14,10 +14,9 @@ import 'laporan.dart';
 import 'main.dart' show db, LoginPage;
 import 'receipt.dart' show parseWithAi;
 import 'notif.dart';
-import 'tabungan.dart';
+import 'menu.dart';
 import 'theme.dart';
 import 'tutorial.dart';
-import 'utang.dart' show UtangPage, namaLawan;
 
 typedef Trx = Map<String, dynamic>;
 
@@ -91,10 +90,14 @@ class ShellState extends State<Shell> {
     if (kIsWeb) return; // notifikasi lokal tidak ada di browser
     try {
       await initNotif();
-      final p = await db.from('utang_v').select().gt('sisa', 0);
-      await jadwalTempo([
-        for (final u in p) {...u, 'nama': namaLawan(u)},
-      ]);
+      // Item menu bertenggat yang belum lunas.
+      final p = await db
+          .from('menu_item')
+          .select('id,judul,nominal,tenggat,menu!inner(pakai_tenggat)')
+          .eq('lunas', false)
+          .eq('menu.pakai_tenggat', true)
+          .not('tenggat', 'is', null);
+      await jadwalTempo(p);
     } catch (_) {
       // Notifikasi opsional; app tetap jalan tanpa izin.
     }
@@ -178,8 +181,35 @@ class ShellState extends State<Shell> {
     final ai = await parseWithAi(src);
     if (!mounted) return;
     Navigator.pop(context);
-    if (ai == null)
+    if (ai == null) {
       _toast('AI sedang tidak tersedia, silakan cek & isi manual');
+    }
+    // AI mengenali salah satu menu custom: langsung isi item di menu itu.
+    if (ai?['jenis'] == 'menu' && ai?['menu_id'] is num) {
+      try {
+        final m = await db
+            .from('menu')
+            .select()
+            .eq('id', ai!['menu_id'])
+            .maybeSingle();
+        if (m != null && mounted) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ItemForm(
+                menu: m,
+                awal: {
+                  'judul': ai['toko'] ?? src,
+                  'nominal': (ai['total'] as num?)?.round(),
+                },
+              ),
+            ),
+          );
+          return;
+        }
+      } catch (_) {} // gagal ambil menu: lanjut sebagai transaksi biasa
+    }
+    if (!mounted) return;
     await openForm(source: src, isReceipt: isReceipt, ai: ai);
   }
 
@@ -236,11 +266,11 @@ class ShellState extends State<Shell> {
           Navigator.pop(c);
           openForm();
         },
-        onUtang: () {
+        onMenu: () {
           Navigator.pop(c);
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const UtangPage()),
+            MaterialPageRoute(builder: (_) => const MenuListPage()),
           );
         },
       ),
@@ -484,18 +514,18 @@ class _BerandaPageState extends State<BerandaPage> {
                           const SizedBox(width: 10),
                         ],
                         _Action(
-                          'Tabungan',
-                          Icons.savings_outlined,
+                          'Menu',
+                          Icons.dashboard_customize_outlined,
                           // Selalu di atas latar glow gelap, jadi tetap terang di kedua mode.
                           const Color(0xFFF3F5F1),
                           () async {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const TabunganPage(),
+                                builder: (_) => const MenuListPage(),
                               ),
                             );
-                            s.load(); // setoran bisa menambah transaksi
+                            s.load(); // tandai lunas bisa menambah transaksi
                           },
                           dark: true,
                         ),
@@ -745,14 +775,14 @@ class _TransaksiPageState extends State<TransaksiPage> {
 /// Sheet "Tambah": ketik bebas + pilihan input.
 class TambahSheet extends StatefulWidget {
   final ValueChanged<String> onText;
-  final VoidCallback onCamera, onGallery, onManual, onUtang;
+  final VoidCallback onCamera, onGallery, onManual, onMenu;
   const TambahSheet({
     super.key,
     required this.onText,
     required this.onCamera,
     required this.onGallery,
     required this.onManual,
-    required this.onUtang,
+    required this.onMenu,
   });
   @override
   State<TambahSheet> createState() => _TambahSheetState();
@@ -940,10 +970,10 @@ class _TambahSheetState extends State<TambahSheet> {
                   widget.onManual,
                 ),
                 _Opt(
-                  'Pinjaman',
-                  'Catat pinjaman',
-                  Icons.swap_horiz,
-                  widget.onUtang,
+                  'Menu',
+                  'Bill, tabungan, dll',
+                  Icons.dashboard_customize_outlined,
+                  widget.onMenu,
                 ),
               ],
             ),
@@ -1228,7 +1258,12 @@ class _Opt extends StatelessWidget {
                       fontSize: 14,
                     ),
                   ),
-                  Text(sub, style: TextStyle(color: C.muted, fontSize: 12)),
+                  Text(
+                    sub,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: C.muted, fontSize: 12),
+                  ),
                 ],
               ),
             ],

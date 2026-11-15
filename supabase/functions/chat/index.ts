@@ -19,14 +19,13 @@ const json = (body: unknown, status = 200) =>
 const rp = (n: number) => "Rp" + Math.round(n).toLocaleString("id-ID");
 
 type Trx = { toko: string; kategori: string; tipe: string; jumlah: number; tanggal: string };
-type Utang = {
-  user_id: string; nama: string; arah: string; jumlah: number; terbayar: number; sisa: number;
-  jatuh_tempo: string | null; pemilik_email: string | null;
+type Item = { judul: string; nominal: number; deskripsi: string | null; tanggal: string; tenggat: string | null; lunas: boolean };
+type Menu = {
+  nama: string; pakai_lunas: boolean; pakai_tenggat: boolean; target: number | null; menu_item: Item[];
 };
-type Tab = { nama: string; target: number | null; saldo: number };
 
 /// Ringkasan data user (3 bulan terakhir) sebagai konteks untuk AI.
-function ringkas(trx: Trx[], utang: Utang[], tab: Tab[], me: string, today: string): string {
+function ringkas(trx: Trx[], menus: Menu[], today: string): string {
   const perBulan: Record<string, { masuk: number; keluar: number; kat: Record<string, number> }> = {};
   for (const t of trx) {
     const b = t.tanggal.slice(0, 7);
@@ -48,21 +47,22 @@ function ringkas(trx: Trx[], utang: Utang[], tab: Tab[], me: string, today: stri
   for (const t of trx.slice(0, 40)) {
     lines.push(`- ${t.tanggal} ${t.tipe === "masuk" ? "+" : "-"}${rp(t.jumlah)} ${t.toko} (${t.kategori})`);
   }
-  lines.push("Pinjaman yang belum selesai:");
-  for (const u of utang) {
-    // Pinjaman yang dibagikan orang lain: arah dibalik, lawan = pemiliknya.
-    const own = u.user_id === me;
-    const arah = own ? u.arah : (u.arah === "utang" ? "piutang" : "utang");
-    const lawan = own ? u.nama : (u.pemilik_email ?? "teman").split("@")[0];
-    const s = arah === "piutang" ? `${lawan} meminjam dari user` : `user meminjam dari ${lawan}`;
-    lines.push(`- ${s}: total ${rp(u.jumlah)}, sudah kembali ${rp(u.terbayar)}, sisa ${rp(u.sisa)}${u.jatuh_tempo ? `, tempo ${u.jatuh_tempo}` : ""}`);
+  lines.push("Menu custom user (dibuat sendiri, mis. bill, tabungan, pinjaman):");
+  for (const m of menus) {
+    const items = m.menu_item ?? [];
+    const total = items.reduce((a, i) => a + i.nominal, 0);
+    const lunas = items.filter((i) => i.lunas).reduce((a, i) => a + i.nominal, 0);
+    lines.push(`- Menu "${m.nama}": ${items.length} item, total ${rp(total)}` +
+      (m.pakai_lunas ? `, lunas ${rp(lunas)}, belum lunas ${rp(total - lunas)}` : "") +
+      (m.target ? `, target ${rp(m.target)}` : ""));
+    for (const i of items.slice(0, 15)) {
+      lines.push(`  · ${i.tanggal} ${i.judul} ${rp(i.nominal)}` +
+        (m.pakai_lunas ? (i.lunas ? " [lunas]" : " [belum]") : "") +
+        (m.pakai_tenggat && i.tenggat ? ` tempo ${i.tenggat}` : "") +
+        (i.deskripsi ? ` (${i.deskripsi.slice(0, 80)})` : ""));
+    }
   }
-  if (utang.length === 0) lines.push("- tidak ada");
-  lines.push("Tabungan:");
-  for (const t of tab) {
-    lines.push(`- ${t.nama}: saldo ${rp(t.saldo)}${t.target ? ` dari target ${rp(t.target)}` : ""}`);
-  }
-  if (tab.length === 0) lines.push("- belum ada");
+  if (menus.length === 0) lines.push("- belum ada");
   return lines.join("\n");
 }
 
@@ -104,24 +104,23 @@ Deno.serve(async (req) => {
   const now = new Date(Date.now() + 7 * 3600_000); // WIB
   const today = now.toISOString().slice(0, 10);
   const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1)).toISOString().slice(0, 10);
-  const [r1, r2, r3] = await Promise.all([
+  const [r1, r2] = await Promise.all([
     userDb.from("trx").select("toko,kategori,tipe,jumlah,tanggal").gte("tanggal", from)
       .order("tanggal", { ascending: false }).limit(500),
-    userDb.from("utang_v").select("user_id,nama,arah,jumlah,terbayar,sisa,jatuh_tempo,pemilik_email")
-      .gt("sisa", 0).limit(50),
-    userDb.from("tabungan_v").select("nama,target,saldo").limit(30),
+    userDb.from("menu").select("nama,pakai_lunas,pakai_tenggat,target,menu_item(judul,nominal,deskripsi,tanggal,tenggat,lunas)")
+      .limit(30),
   ]);
-  if (r1.error || r2.error || r3.error) {
-    console.error("db", r1.error?.message, r2.error?.message, r3.error?.message);
+  if (r1.error || r2.error) {
+    console.error("db", r1.error?.message, r2.error?.message);
     return json({ error: "db" }, 500);
   }
 
   const system =
     "Kamu asisten keuangan pribadi di aplikasi Rupi. Jawab dalam Bahasa Indonesia yang ramah dan sopan, singkat " +
-    "(maks ~6 kalimat atau poin pendek), tanpa markdown tabel. Pakai kata 'pinjaman' / 'meminjam', hindari kata 'utang'. " +
+    "(maks ~6 kalimat atau poin pendek), tanpa markdown tabel. " +
     "Gunakan HANYA data di bawah untuk angka; jangan mengarang transaksi. Kalau data tidak cukup, bilang terus terang. " +
     "Format uang: Rp25.000.\n\n" +
-    ringkas((r1.data ?? []) as Trx[], (r2.data ?? []) as Utang[], (r3.data ?? []) as Tab[], u.user.id, today);
+    ringkas((r1.data ?? []) as Trx[], (r2.data ?? []) as Menu[], today);
 
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 20000);

@@ -4,8 +4,7 @@ import 'package:keuangan_ai/format.dart';
 import 'package:keuangan_ai/laporan.dart';
 import 'package:keuangan_ai/notif.dart' show waktuTempo;
 import 'package:keuangan_ai/receipt.dart';
-import 'package:keuangan_ai/tabungan.dart' show progres;
-import 'package:keuangan_ai/utang.dart';
+import 'package:keuangan_ai/menu.dart' show ringkasItem;
 
 void main() {
   test('parseRupiah', () {
@@ -75,42 +74,15 @@ void main() {
     expect(h[0], 0);
   });
 
-  test('pinjaman: arah & sisa dari sudut pandangku', () {
-    final rows = [
-      {'user_id': 'me', 'arah': 'piutang', 'nama': 'Budi', 'sisa': 70000},
-      {'user_id': 'me', 'arah': 'utang', 'nama': 'Sari', 'sisa': 0},
-      // Dibagikan teman: dia mencatat 'piutang' = aku yang meminjam.
-      {
-        'user_id': 'x',
-        'arah': 'piutang',
-        'pemilik_email': 'rina@mail.com',
-        'sisa': 40000,
-      },
-    ];
-    expect(arahKu(rows[2], 'me'), 'utang');
-    expect(namaLawan(rows[2], 'me'), 'rina');
-    expect(sisaTotal(rows, 'piutang', 'me'), 70000);
-    expect(sisaTotal(rows, 'utang', 'me'), 40000);
-  });
-
-  test('rencanaBayar potong terlama dulu, lewati yang lunas', () {
-    final open = [
-      {'id': 1, 'sisa': 50000},
-      {'id': 2, 'sisa': 0},
-      {'id': 3, 'sisa': 100000},
-    ];
-    expect(rencanaBayar(open, 80000), [
-      {'utang_id': 1, 'jumlah': 50000},
-      {'utang_id': 3, 'jumlah': 30000},
+  test('ringkasItem menu: total, lunas, sisa', () {
+    final s = ringkasItem([
+      {'nominal': 100000, 'lunas': true},
+      {'nominal': 50000, 'lunas': false},
+      {'nominal': 25000},
     ]);
-    final semua = rencanaBayar(open, 999999);
-    expect(semua.fold<int>(0, (s, e) => s + (e['jumlah'] as int)), 150000);
-  });
-
-  test('progres tabungan', () {
-    expect(progres({'saldo': 250000, 'target': 1000000}), 0.25);
-    expect(progres({'saldo': 2000000, 'target': 1000000}), 1.0);
-    expect(progres({'saldo': 5, 'target': null}), null);
+    expect(s.total, 175000);
+    expect(s.lunas, 100000);
+    expect(s.sisa, 75000);
   });
 
   test('pesanError', () {
