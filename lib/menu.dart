@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show FileOptions, PostgrestException;
 
 import 'anim.dart';
 import 'form_page.dart' show ymd;
@@ -35,6 +37,15 @@ IconData ikonDari(Row_ m) => ikonMenu[m['ikon']] ?? Icons.folder_outlined;
   }
   return (total: total, lunas: lunas, sisa: total - lunas);
 }
+
+/// Kecilkan foto ke WebP (sisi terpanjang ±1280px) agar hemat storage.
+Future<Uint8List> keWebp(Uint8List b) => FlutterImageCompress.compressWithList(
+  b,
+  minWidth: 1280,
+  minHeight: 1280,
+  quality: 70,
+  format: CompressFormat.webp,
+);
 
 String? get _uid => db.auth.currentUser?.id;
 
@@ -1175,12 +1186,23 @@ class _ItemFormState extends State<ItemForm> {
     try {
       String? path = foto;
       if (fotoBaru != null) {
-        final ext = fotoBaru!.name.split('.').last.toLowerCase();
-        final e = ['png', 'webp', 'heic'].contains(ext) ? ext : 'jpg';
+        var bytes = await fotoBaru!.readAsBytes();
+        var e = fotoBaru!.name.split('.').last.toLowerCase();
+        try {
+          bytes = await keWebp(bytes);
+          e = 'webp';
+        } catch (_) {
+          // Gagal konversi (mis. browser lama): unggah file aslinya.
+          if (!['png', 'webp', 'heic'].contains(e)) e = 'jpg';
+        }
         path = '${m['id']}/${DateTime.now().microsecondsSinceEpoch}.$e';
         await db.storage
             .from('lampiran')
-            .uploadBinary(path, await fotoBaru!.readAsBytes());
+            .uploadBinary(
+              path,
+              bytes,
+              fileOptions: FileOptions(contentType: 'image/$e'),
+            );
         if (foto != null) await db.storage.from('lampiran').remove([foto!]);
       }
       final data = {
