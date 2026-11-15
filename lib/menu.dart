@@ -901,6 +901,8 @@ class _AnggotaState extends State<_Anggota> {
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
+                  // Tema membuat tombol selebar layar; di dalam Row harus dibatasi.
+                  style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
                   onPressed: busy ? null : _tambah,
                   child: const Text('Undang'),
                 ),

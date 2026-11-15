@@ -176,6 +176,12 @@ void main() {
     await t.enterText(find.widgetWithText(TextField, 'Nama menu'), namaMenu);
     await ketuk(t, find.text('Simpan'));
     await tunggu(t, find.text('Belum lunas')); // halaman menu terbuka
+    // Sheet Teman: kolom kode & tombol Undang tampil untuk pemilik
+    await ketuk(t, find.byTooltip('Teman'));
+    await tunggu(t, find.widgetWithText(TextField, 'Kode teman'));
+    expect(find.text('Undang'), findsOneWidget);
+    Navigator.of(t.element(find.text('Teman di menu ini'))).pop();
+    await t.pump(const Duration(seconds: 1));
     // Tambah manual
     await ketuk(t, find.text('Tambah'));
     await t.enterText(find.widgetWithText(TextField, 'Nominal (Rp)'), '75000');
