@@ -129,8 +129,12 @@ Deno.serve(async (req) => {
       (typeof msg.reasoning === "string" ? extractJson(msg.reasoning) : null);
     // Jangan percaya menu_id dari model kalau bukan menu milik/terbagi ke user.
     if (parsed && (parsed.jenis !== "menu" || !menuIds.has(parsed.menu_id as number))) {
-      parsed.jenis = "biasa";
-      parsed.menu_id = null;
+      // Model gratis kadang meleset; nama menu yang disebut persis tetap menang (terpanjang dulu).
+      const low = text.toLowerCase();
+      const cocok = (menus ?? []).filter((m) => low.includes(String(m.nama).toLowerCase()))
+        .sort((a, b) => String(b.nama).length - String(a.nama).length)[0];
+      parsed.jenis = cocok ? "menu" : "biasa";
+      parsed.menu_id = cocok?.id ?? null;
     }
     console.log("model", res?.model, Date.now() - start, "ms", parsed ? JSON.stringify(parsed) : "unparseable");
     if (!parsed) console.error("unparseable", String(msg.content ?? "").slice(0, 300));
