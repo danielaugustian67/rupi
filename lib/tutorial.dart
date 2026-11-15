@@ -16,7 +16,7 @@ const langkahTutorial = [
   (
     Icons.add_circle_outline,
     'Catat dengan tombol +',
-    'Ketik bebas seperti "makan bakso 25rb" atau "gaji 5jt", lalu AI yang mengisi '
+    'Ketik bebas: keterangan dan jumlahnya, misalnya "makan 25rb". AI yang mengisi '
         'formnya. Bisa juga lewat suara, scan struk, atau isi manual.',
   ),
   (
@@ -28,7 +28,7 @@ const langkahTutorial = [
   (
     Icons.dashboard_customize_outlined,
     'Menu buatanmu sendiri',
-    'Buat menu seperti "Bill Kakak", "Tabungan Liburan", atau "Pinjaman Budi". '
+    'Buat menu sendiri untuk tagihan, tabungan, pinjaman, atau apa saja. '
         'Pilih sendiri: ceklis lunas, tenggat, foto bukti. Undang teman pakai '
         'kodenya supaya kalian melihat isi yang sama.',
   ),

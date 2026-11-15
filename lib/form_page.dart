@@ -28,8 +28,10 @@ class FormPage extends StatefulWidget {
   final String tipe;
   final Map<String, dynamic>?
   ai; // hasil AI; null = AI mati/gagal, pakai tebakan biasa
+  final List<Map<String, dynamic>> akun; // kartu saldo yang bisa dipilih
   const FormPage({
     this.ai,
+    this.akun = const [],
     super.key,
     this.sourceText = '',
     this.isReceipt = false,
@@ -47,6 +49,7 @@ class _FormPageState extends State<FormPage> {
   late String tipe = widget.tipe;
   DateTime tanggal = DateTime.now();
   bool busy = false;
+  Object? akunId; // null = tanpa kartu
 
   @override
   void initState() {
@@ -58,6 +61,7 @@ class _FormPageState extends State<FormPage> {
       if (kategoriList.contains(r['kategori'])) kategori = r['kategori'];
       tipe = r['tipe'] == 'masuk' ? 'masuk' : 'keluar';
       tanggal = DateTime.tryParse('${r['tanggal']}') ?? tanggal;
+      akunId = r['akun_id'];
       return;
     }
     final src = widget.sourceText;
@@ -82,6 +86,9 @@ class _FormPageState extends State<FormPage> {
         if (ai['toko'] is String) toko.text = ai['toko'];
         if (kategoriList.contains(ai['kategori'])) kategori = ai['kategori'];
         if (ai['tipe'] == 'masuk' || ai['tipe'] == 'keluar') tipe = ai['tipe'];
+        if (widget.akun.any((a) => a['id'] == ai['akun_id'])) {
+          akunId = ai['akun_id'];
+        }
         if (jumlah.text.isEmpty && ai['total'] is num) {
           jumlah.text = '${(ai['total'] as num).round()}';
         }
@@ -111,6 +118,7 @@ class _FormPageState extends State<FormPage> {
       'tipe': tipe,
       'jumlah': n,
       'tanggal': ymd(tanggal),
+      'akun_id': akunId,
     };
     setState(() => busy = true);
     try {
@@ -218,6 +226,20 @@ class _FormPageState extends State<FormPage> {
             ],
             onChanged: (v) => setState(() => kategori = v ?? kategori),
           ),
+          if (widget.akun.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<Object?>(
+              key: ValueKey('akun$akunId'),
+              initialValue: akunId,
+              decoration: const InputDecoration(labelText: 'Kartu'),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Tanpa kartu')),
+                for (final a in widget.akun)
+                  DropdownMenuItem(value: a['id'], child: Text('${a['nama']}')),
+              ],
+              onChanged: (v) => setState(() => akunId = v),
+            ),
+          ],
           const SizedBox(height: 12),
           Material(
             color: C.card,

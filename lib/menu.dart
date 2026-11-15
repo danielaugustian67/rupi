@@ -140,8 +140,8 @@ class _MenuListPageState extends State<MenuListPage> {
               Padding(
                 padding: const EdgeInsets.all(32),
                 child: Text(
-                  'Belum ada menu. Buat sendiri, misalnya "Bill Kakak", '
-                  '"Tabungan Liburan", atau "Pinjaman Budi".',
+                  'Belum ada menu. Buat sendiri untuk tagihan, tabungan, '
+                  'pinjaman, atau apa saja.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: C.muted),
                 ),
@@ -318,7 +318,7 @@ Future<Row_?> formMenu(BuildContext context, [Row_? m]) async {
                 maxLength: 60,
                 decoration: const InputDecoration(
                   labelText: 'Nama menu',
-                  hintText: 'mis. Bill Kakak',
+                  hintText: 'mis. Tagihan, Tabungan',
                 ),
               ),
               Wrap(
@@ -650,8 +650,8 @@ class _MenuPageState extends State<MenuPage> {
               Padding(
                 padding: const EdgeInsets.all(32),
                 child: Text(
-                  'Belum ada isi. Ketuk Tambah, atau ketik di tombol + Beranda '
-                  'seperti "${menu['nama']} 50rb".',
+                  'Belum ada isi. Ketuk Tambah, atau sebut nama menu ini saat '
+                  'mengetik di tombol + Beranda.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: C.muted),
                 ),

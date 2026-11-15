@@ -5,20 +5,24 @@ const DAILY_LIMIT = Number(Deno.env.get("AI_DAILY_LIMIT") ?? "50");
 const PROMPT =
   'Kamu pencatat keuangan pribadi Indonesia. Input berupa teks OCR struk atau kalimat bebas. ' +
   'Balas HANYA satu objek JSON tanpa penjelasan: ' +
-  '{"jenis": "biasa" | "menu", "menu_id": number | null, ' +
+  '{"jenis": "biasa" | "menu", "menu_id": number | null, "akun_id": number | null, ' +
   '"toko": string (keterangan singkat, huruf kapital di awal), "total": number, ' +
   '"tipe": "masuk" | "keluar" (arah uang dari sudut pandang AKU), ' +
   '"kategori": "makan"|"belanja"|"transport"|"tagihan"|"hiburan"|"kesehatan"|"gaji"|"lainnya"}. ' +
   'Aturan: rb/ribu/k = x1.000, jt/juta = x1.000.000. Membeli/membayar sesuatu = keluar. ' +
   'Gaji, bonus, terima/nerima uang = masuk. Struk: total = angka TOTAL akhir. ' +
   'User punya MENU CUSTOM (daftar di bawah). Pakai jenis "menu" dan menu_id yang cocok HANYA kalau kalimat ' +
-  'jelas menyebut nama menu itu atau maksudnya jelas sama (mis. menu "Bill Kakak" untuk "titip beli kakak"). ' +
+  'jelas menyebut nama menu itu atau maksudnya jelas sama (mis. menu "Tagihan Rumah" untuk "bayar listrik rumah"). ' +
   'Untuk jenis menu, toko = isi item tanpa nama menunya. Kalau ragu, jenis "biasa" dan menu_id null. ' +
+  'User juga punya KARTU (e-wallet/rekening, daftar di bawah). akun_id = id kartu yang disebut ' +
+  '(mis. "pakai X", "dari X", "ke X"); kalau tidak disebut, null. Nama kartu jangan masuk ke toko. ' +
   'Contoh: ' +
-  '"makan bakso 25rb" -> {"jenis":"biasa","menu_id":null,"toko":"Bakso","total":25000,"tipe":"keluar","kategori":"makan"}. ' +
-  '"gaji 7,5jt" -> {"jenis":"biasa","menu_id":null,"toko":"Gaji","total":7500000,"tipe":"masuk","kategori":"gaji"}. ' +
-  'Dengan menu [{"id":7,"nama":"Bill Kakak"}]: "bill kakak sepatu 300rb" -> ' +
-  '{"jenis":"menu","menu_id":7,"toko":"Sepatu","total":300000,"tipe":"keluar","kategori":"belanja"}.';
+  '"makan siang 25rb" -> {"jenis":"biasa","menu_id":null,"akun_id":null,"toko":"Makan siang","total":25000,"tipe":"keluar","kategori":"makan"}. ' +
+  '"gaji 7,5jt" -> {"jenis":"biasa","menu_id":null,"akun_id":null,"toko":"Gaji","total":7500000,"tipe":"masuk","kategori":"gaji"}. ' +
+  'Dengan kartu [{"id":3,"nama":"Dompet A"}]: "bensin 50rb pakai dompet a" -> ' +
+  '{"jenis":"biasa","menu_id":null,"akun_id":3,"toko":"Bensin","total":50000,"tipe":"keluar","kategori":"transport"}. ' +
+  'Dengan menu [{"id":7,"nama":"Tagihan Rumah"}]: "tagihan rumah listrik 300rb" -> ' +
+  '{"jenis":"menu","menu_id":7,"akun_id":null,"toko":"Listrik","total":300000,"tipe":"keluar","kategori":"tagihan"}.';
 
 // Versi web memanggil dari browser; auth tetap lewat JWT di header, bukan cookie.
 const cors = {
@@ -83,9 +87,14 @@ Deno.serve(async (req) => {
   const userDb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  const { data: menus } = await userDb.from("menu").select("id,nama").limit(50);
+  const [{ data: menus }, { data: akuns }] = await Promise.all([
+    userDb.from("menu").select("id,nama").limit(50),
+    userDb.from("akun").select("id,nama").limit(30),
+  ]);
   const menuIds = new Set((menus ?? []).map((m) => m.id));
-  const daftarMenu = "MENU CUSTOM user: " + JSON.stringify(menus ?? []);
+  const akunIds = new Set((akuns ?? []).map((a) => a.id));
+  const daftarMenu = "MENU CUSTOM user: " + JSON.stringify(menus ?? []) +
+    "\nKARTU user: " + JSON.stringify(akuns ?? []);
 
   // App menyerah di 12 dtk lalu pakai form biasa; server berhenti lebih dulu.
   const ctrl = new AbortController();
@@ -127,15 +136,18 @@ Deno.serve(async (req) => {
     const msg = res?.choices?.[0]?.message ?? {};
     const parsed = (typeof msg.content === "string" ? extractJson(msg.content) : null) ??
       (typeof msg.reasoning === "string" ? extractJson(msg.reasoning) : null);
-    // Jangan percaya menu_id dari model kalau bukan menu milik/terbagi ke user.
-    if (parsed && (parsed.jenis !== "menu" || !menuIds.has(parsed.menu_id as number))) {
-      // Model gratis kadang meleset; nama menu yang disebut persis tetap menang (terpanjang dulu).
-      const low = text.toLowerCase();
-      const cocok = (menus ?? []).filter((m) => low.includes(String(m.nama).toLowerCase()))
+    // Model gratis kadang meleset; nama yang disebut persis tetap menang (terpanjang dulu).
+    const low = text.toLowerCase();
+    const sebut = (rows: { id: number; nama: string }[] | null) =>
+      (rows ?? []).filter((x) => low.includes(String(x.nama).toLowerCase()))
         .sort((a, b) => String(b.nama).length - String(a.nama).length)[0];
+    // Jangan percaya id dari model kalau bukan milik/terbagi ke user.
+    if (parsed && (parsed.jenis !== "menu" || !menuIds.has(parsed.menu_id as number))) {
+      const cocok = sebut(menus);
       parsed.jenis = cocok ? "menu" : "biasa";
       parsed.menu_id = cocok?.id ?? null;
     }
+    if (parsed && !akunIds.has(parsed.akun_id as number)) parsed.akun_id = sebut(akuns)?.id ?? null;
     console.log("model", res?.model, Date.now() - start, "ms", parsed ? JSON.stringify(parsed) : "unparseable");
     if (!parsed) console.error("unparseable", String(msg.content ?? "").slice(0, 300));
     return parsed ? json(parsed) : json({ error: "unparseable" }, 502);

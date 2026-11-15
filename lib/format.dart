@@ -9,7 +9,7 @@ String rp(num v) {
   return b.toString();
 }
 
-/// Nominal dari kalimat bebas: "bakso 25rb" -> 25000, "gaji 7,5jt" -> 7500000.
+/// Nominal dari kalimat bebas: "makan 25rb" -> 25000, "gaji 7,5jt" -> 7500000.
 /// Dipakai sebelum/tanpa AI supaya form langsung terisi.
 int? parseNominal(String text) {
   final m = RegExp(

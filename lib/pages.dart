@@ -6,6 +6,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:image_picker/image_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import 'akun.dart';
 import 'anim.dart';
 import 'chat.dart';
 import 'form_page.dart';
@@ -47,6 +48,7 @@ class ShellState extends State<Shell> {
   DateTime bulan = DateTime(DateTime.now().year, DateTime.now().month);
   List<Trx> rows = [];
   Map<String, int> anggaran = {}; // kategori -> batas per bulan
+  List<Map<String, dynamic>> akun = []; // kartu saldo (+ saldo dari view)
   bool loading = true;
 
   @override
@@ -70,9 +72,11 @@ class ShellState extends State<Shell> {
           .order('tanggal', ascending: false)
           .order('id', ascending: false);
       final a = await db.from('anggaran').select('kategori,batas');
+      final k = await db.from('akun_v').select().order('created_at');
       if (mounted) {
         setState(() {
           rows = r;
+          akun = k;
           anggaran = {
             for (final x in a) '${x['kategori']}': (x['batas'] as num).toInt(),
           };
@@ -147,6 +151,7 @@ class ShellState extends State<Shell> {
           sourceText: source,
           isReceipt: isReceipt,
           ai: ai,
+          akun: akun,
         ),
       ),
     );
@@ -290,8 +295,10 @@ class ShellState extends State<Shell> {
     ];
   }
 
-  int sum(String tipe) => rows
+  /// Total bulan ini per tipe; [akunId] membatasi ke satu kartu.
+  int sum(String tipe, [Object? akunId]) => rows
       .where((r) => r['tipe'] == tipe)
+      .where((r) => akunId == null || r['akun_id'] == akunId)
       .fold(0, (s, r) => s + (r['jumlah'] as num).toInt());
 
   @override
@@ -389,7 +396,6 @@ class _BerandaPageState extends State<BerandaPage> {
   @override
   Widget build(BuildContext context) {
     final s = widget.shell;
-    final masuk = s.sum('masuk'), keluar = s.sum('keluar');
     final email = db.auth.currentUser?.email ?? '';
     final nama = email.isEmpty ? '' : email.split('@').first;
     final namaCap = nama.isEmpty
@@ -477,13 +483,11 @@ class _BerandaPageState extends State<BerandaPage> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    _BankCard(
+                    _KartuPager(
+                      shell: s,
                       bulan: _bulanNama[s.bulan.month - 1],
-                      saldo: uang(masuk - keluar),
-                      saldoNum: masuk - keluar,
-                      masuk: uang(masuk),
-                      keluar: uang(keluar),
-                      hidden: hide,
+                      hide: hide,
+                      uang: uang,
                       onToggle: () => setState(() => hide = !hide),
                     ),
                     const SizedBox(height: 22),
@@ -799,7 +803,7 @@ class _TambahSheetState extends State<TambahSheet> {
     super.dispose();
   }
 
-  /// Ucapkan transaksi ("makan bakso dua puluh lima ribu"), hasilnya masuk kotak teks.
+  /// Ucapkan transaksi, hasilnya masuk kotak teks.
   Future<void> _mic() async {
     if (dengar) {
       await _suara.stop();
@@ -908,7 +912,7 @@ class _TambahSheetState extends State<TambahSheet> {
                             textInputAction: TextInputAction.send,
                             onSubmitted: (_) => _kirim(),
                             decoration: const InputDecoration(
-                              hintText: 'contoh: makan bakso 25rb',
+                              hintText: 'Ketik jumlah & keterangan',
                               filled: false,
                               border: InputBorder.none,
                             ),
@@ -1276,7 +1280,7 @@ class _Opt extends StatelessWidget {
 
 /// Kartu saldo bergaya kartu bank (lime, chip, logo).
 class _BankCard extends StatelessWidget {
-  final String bulan, saldo, masuk, keluar;
+  final String judul, pojok, saldo, masuk, keluar;
   final int saldoNum;
   final bool hidden;
   static const _saldoStyle = TextStyle(
@@ -1287,7 +1291,8 @@ class _BankCard extends StatelessWidget {
   );
   final VoidCallback onToggle;
   const _BankCard({
-    required this.bulan,
+    required this.judul,
+    this.pojok = 'RUPI',
     required this.saldo,
     required this.saldoNum,
     required this.masuk,
@@ -1360,7 +1365,9 @@ class _BankCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              'Total saldo · $bulan',
+                              judul,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: soft,
                                 fontSize: 13,
@@ -1400,11 +1407,11 @@ class _BankCard extends StatelessWidget {
                           const SizedBox(width: 18),
                           _CardStat('▼ Keluar', keluar),
                           const Spacer(),
-                          const Padding(
-                            padding: EdgeInsets.only(right: 8),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
                             child: Text(
-                              'RUPI',
-                              style: TextStyle(
+                              pojok.toUpperCase(),
+                              style: const TextStyle(
                                 color: ink,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
@@ -1523,4 +1530,146 @@ void pilihTema(BuildContext context) {
       ),
     ),
   );
+}
+
+/// Kartu saldo yang bisa digeser: Total bulan ini, tiap kartu akun, lalu "+ Tambah kartu".
+class _KartuPager extends StatefulWidget {
+  final ShellState shell;
+  final String bulan;
+  final bool hide;
+  final String Function(int) uang;
+  final VoidCallback onToggle;
+  const _KartuPager({
+    required this.shell,
+    required this.bulan,
+    required this.hide,
+    required this.uang,
+    required this.onToggle,
+  });
+  @override
+  State<_KartuPager> createState() => _KartuPagerState();
+}
+
+class _KartuPagerState extends State<_KartuPager> {
+  final ctrl = PageController();
+  int i = 0;
+
+  @override
+  void dispose() {
+    ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _form([Map<String, dynamic>? a]) async {
+    if (await formAkun(context, a)) await widget.shell.load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.shell;
+    final uang = widget.uang;
+    final masuk = s.sum('masuk'), keluar = s.sum('keluar');
+    final pages = <Widget>[
+      _BankCard(
+        judul: 'Total saldo · ${widget.bulan}',
+        saldo: uang(masuk - keluar),
+        saldoNum: masuk - keluar,
+        masuk: uang(masuk),
+        keluar: uang(keluar),
+        hidden: widget.hide,
+        onToggle: widget.onToggle,
+      ),
+      for (final a in s.akun)
+        GestureDetector(
+          onLongPress: () => _form(a),
+          child: _BankCard(
+            judul: '${a['nama']} · tahan untuk ubah',
+            pojok: '${a['nama']}',
+            saldo: uang((a['saldo'] as num).toInt()),
+            saldoNum: (a['saldo'] as num).toInt(),
+            masuk: uang(s.sum('masuk', a['id'])),
+            keluar: uang(s.sum('keluar', a['id'])),
+            hidden: widget.hide,
+            onToggle: widget.onToggle,
+          ),
+        ),
+      Semantics(
+        button: true,
+        label: 'Tambah kartu',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(26),
+          onTap: () => _form(),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: Colors.white38, width: 1.5),
+              color: Colors.white.withValues(alpha: 0.06),
+            ),
+            child: const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_card_outlined, color: Colors.white, size: 36),
+                  SizedBox(height: 10),
+                  Text(
+                    'Tambah kartu',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'E-wallet, rekening bank, tunai…',
+                    style: TextStyle(color: Color(0xFFB8C4B5), fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ];
+    return Column(
+      children: [
+        LayoutBuilder(
+          builder: (_, c) => SizedBox(
+            height: c.maxWidth / 1.62,
+            child: PageView(
+              controller: ctrl,
+              onPageChanged: (v) => setState(() => i = v),
+              children: [
+                for (final p in pages)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: p,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Semantics(
+          label: 'Kartu ${i + 1} dari ${pages.length}',
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var k = 0; k < pages.length; k++)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: k == i ? 18 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: k == i ? C.lime : Colors.white24,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

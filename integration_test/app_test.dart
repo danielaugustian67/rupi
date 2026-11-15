@@ -136,7 +136,7 @@ void main() {
     // 9. Ketik bebas: AI (atau parser cadangan) mengisi form
     await ketuk(t, find.byIcon(Icons.add));
     await t.enterText(
-      find.widgetWithText(TextField, 'contoh: makan bakso 25rb'),
+      find.widgetWithText(TextField, 'Ketik jumlah & keterangan'),
       'bonus akhir tahun 750rb',
     );
     await ketuk(t, find.byTooltip('Kirim'));
@@ -200,7 +200,7 @@ void main() {
     // AI: kalimat yang menyebut nama menu masuk ke menu itu
     await ketuk(t, find.byIcon(Icons.add));
     await t.enterText(
-      find.widgetWithText(TextField, 'contoh: makan bakso 25rb'),
+      find.widgetWithText(TextField, 'Ketik jumlah & keterangan'),
       '${namaMenu.toLowerCase()} sepatu 300rb',
     );
     await ketuk(t, find.byTooltip('Kirim'));
@@ -228,6 +228,35 @@ void main() {
     expect(find.text(namaMenu), findsNothing);
     await t.pageBack();
     await t.pump(const Duration(seconds: 1));
+
+    // 11. Kartu saldo: geser ke "Tambah kartu", buat, cek, lalu hapus
+    await ketuk(t, beranda);
+    await t.scrollUntilVisible(
+      find.byType(PageView),
+      -300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    for (
+      var n = 0;
+      n < 15 && find.text('Tambah kartu').hitTestable().evaluate().isEmpty;
+      n++
+    ) {
+      await t.drag(find.byType(PageView), const Offset(-500, 0));
+      await t.pumpAndSettle();
+    }
+    await ketuk(t, find.text('Tambah kartu'));
+    final kartu = 'Kartu E2E ${DateTime.now().millisecondsSinceEpoch % 1000}';
+    await t.enterText(find.widgetWithText(TextField, 'Nama kartu'), kartu);
+    await t.enterText(find.widgetWithText(TextField, 'Saldo awal'), '54321');
+    await ketuk(t, find.widgetWithText(TextButton, 'Simpan'));
+    await tunggu(t, find.text('$kartu · tahan untuk ubah'));
+    await tunggu(t, find.text('Rp54.321'));
+    await t.longPress(find.text('$kartu · tahan untuk ubah'));
+    await t.pumpAndSettle();
+    await ketuk(t, find.widgetWithText(TextButton, 'Hapus'));
+    await ketuk(t, find.widgetWithText(TextButton, 'Hapus').last);
+    await t.pump(const Duration(seconds: 2));
+    expect(find.text('$kartu · tahan untuk ubah'), findsNothing);
 
     // 12. Chat AI menjawab
     await ketuk(t, find.byIcon(Icons.chat_bubble_outline));
