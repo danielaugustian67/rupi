@@ -301,16 +301,64 @@ Future<Row_?> formMenu(BuildContext context, [Row_? m]) async {
   var tenggat = m?['pakai_tenggat'] == true;
   var lunas = m?['pakai_lunas'] ?? true;
   var foto = m?['pakai_foto'] == true;
-  final ok = await showDialog<bool>(
+  final ok = await showModalBottomSheet<bool>(
     context: context,
+    isScrollControlled: true,
+    backgroundColor: C.bg,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+    ),
     builder: (c) => StatefulBuilder(
-      builder: (c, set) => AlertDialog(
-        title: Text(m == null ? 'Menu baru' : 'Ubah menu'),
-        content: SingleChildScrollView(
+      builder: (c, set) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          12,
+          20,
+          MediaQuery.viewInsetsOf(c).bottom + 20,
+        ),
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: C.line,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Pratinjau langsung: ikon + nama seperti di daftar menu.
+              Row(
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: limeCard,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Icon(ikonMenu[ikon], color: C.dark, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      m == null ? 'Menu baru' : 'Ubah menu',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: C.text,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
               TextField(
                 controller: nama,
                 autofocus: m == null,
@@ -321,64 +369,68 @@ Future<Row_?> formMenu(BuildContext context, [Row_? m]) async {
                   hintText: 'mis. Tagihan, Tabungan',
                 ),
               ),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
+              const SizedBox(height: 6),
+              _Judul('Ikon'),
+              GridView.count(
+                crossAxisCount: 4,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.05,
                 children: [
                   for (final e in ikonMenu.entries)
-                    ChoiceChip(
-                      label: Icon(e.value, size: 20),
-                      tooltip: e.key,
-                      selected: ikon == e.key,
-                      onSelected: (_) => set(() => ikon = e.key),
+                    _IkonTile(
+                      ikon: e.value,
+                      label: e.key,
+                      pilih: ikon == e.key,
+                      onTap: () => set(() => ikon = e.key),
                     ),
                 ],
               ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: lunas,
-                onChanged: (v) => set(() => lunas = v),
-                title: const Text('Ceklis lunas'),
-                subtitle: const Text('Tandai item yang sudah dibayar'),
+              const SizedBox(height: 18),
+              _Judul('Fitur'),
+              _Opsi(
+                ikon: Icons.task_alt,
+                judul: 'Ceklis lunas',
+                sub: 'Tandai item yang sudah dibayar',
+                on: lunas,
+                onTap: () => set(() => lunas = !lunas),
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: tenggat,
-                onChanged: (v) => set(() => tenggat = v),
-                title: const Text('Tenggat'),
-                subtitle: const Text('Tanggal jatuh tempo + pengingat'),
+              _Opsi(
+                ikon: Icons.event_outlined,
+                judul: 'Tenggat',
+                sub: 'Tanggal jatuh tempo + pengingat',
+                on: tenggat,
+                onTap: () => set(() => tenggat = !tenggat),
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: foto,
-                onChanged: (v) => set(() => foto = v),
-                title: const Text('Lampiran foto'),
-                subtitle: const Text('mis. bukti transfer'),
+              _Opsi(
+                ikon: Icons.image_outlined,
+                judul: 'Lampiran foto',
+                sub: 'mis. bukti transfer',
+                on: foto,
+                onTap: () => set(() => foto = !foto),
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: target,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Target nominal (opsional)',
                   hintText: 'mis. 5jt, untuk tabungan',
+                  prefixIcon: Icon(Icons.flag_outlined),
                 ),
+              ),
+              const SizedBox(height: 20),
+              FilledButton(
+                onPressed: () {
+                  if (nama.text.trim().isNotEmpty) Navigator.pop(c, true);
+                },
+                child: const Text('Simpan'),
               ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (nama.text.trim().isNotEmpty) Navigator.pop(c, true);
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
       ),
     ),
   );
@@ -409,6 +461,128 @@ Future<Row_?> formMenu(BuildContext context, [Row_? m]) async {
     if (context.mounted) _toast(context, 'Gagal simpan: ${_pesan(e)}');
     return null;
   }
+}
+
+class _Judul extends StatelessWidget {
+  final String t;
+  const _Judul(this.t);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(
+      t.toUpperCase(),
+      style: TextStyle(
+        fontSize: 12,
+        letterSpacing: 1.2,
+        fontWeight: FontWeight.w700,
+        color: C.muted,
+      ),
+    ),
+  );
+}
+
+class _IkonTile extends StatelessWidget {
+  final IconData ikon;
+  final String label;
+  final bool pilih;
+  final VoidCallback onTap;
+  const _IkonTile({
+    required this.ikon,
+    required this.label,
+    required this.pilih,
+    required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    selected: pilih,
+    label: 'Ikon $label',
+    child: GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        decoration: BoxDecoration(
+          color: pilih ? C.btn : C.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: pilih ? C.btn : C.line),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(ikon, size: 24, color: pilih ? C.onBtn : C.text),
+            const SizedBox(height: 6),
+            Text(
+              label[0].toUpperCase() + label.substring(1),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: pilih ? C.onBtn : C.muted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _Opsi extends StatelessWidget {
+  final IconData ikon;
+  final String judul, sub;
+  final bool on;
+  final VoidCallback onTap;
+  const _Opsi({
+    required this.ikon,
+    required this.judul,
+    required this.sub,
+    required this.on,
+    required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Material(
+      color: C.card,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: on ? C.lime.withValues(alpha: 0.35) : C.track,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(ikon, size: 20, color: C.text),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      judul,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: C.text,
+                      ),
+                    ),
+                    Text(sub, style: TextStyle(fontSize: 12, color: C.muted)),
+                  ],
+                ),
+              ),
+              Switch(value: on, onChanged: (_) => onTap()),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 // ───────────────────────── Isi satu menu ─────────────────────────
