@@ -391,7 +391,11 @@ class ShellState extends State<Shell> {
             body: Row(
               children: [
                 _SideNav(index: tab, onTap: pilihTab),
-                Expanded(child: lebarMaks(pages[tab], maks: 820)),
+                Expanded(
+                  child: tab == 0
+                      ? pages[tab]
+                      : lebarMaks(pages[tab], maks: 960),
+                ),
               ],
             ),
           )
@@ -416,6 +420,7 @@ class ShellState extends State<Shell> {
 }
 
 /// Navigasi samping untuk layar lebar; urutan item sama dengan _BottomNav.
+/// Navigasi samping untuk layar lebar; urutan item sama dengan _BottomNav.
 class _SideNav extends StatelessWidget {
   final int index;
   final ValueChanged<int> onTap;
@@ -423,70 +428,85 @@ class _SideNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 232,
-    color: C.card,
-    padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-    child: SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  gradient: limeCard,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.savings_outlined, color: C.dark),
+    width: 248,
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF13241A), Color(0xFF070C08)],
+      ),
+      border: Border(right: BorderSide(color: Color(0x1AFFFFFF))),
+    ),
+    padding: const EdgeInsets.fromLTRB(16, 28, 16, 20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                gradient: limeCard,
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 10),
-              Text(
-                'Rupi',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: C.text,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 28),
-          FilledButton.icon(
-            onPressed: () => onTap(2),
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah transaksi'),
-          ),
-          const SizedBox(height: 16),
-          for (final i in const [0, 1, 3, 4])
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Material(
-                color: i == index ? C.btn : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
-                child: ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  selected: i == index,
-                  leading: Icon(
-                    _BottomNav.items[i].$1,
-                    color: i == index ? C.onBtn : C.muted,
-                  ),
-                  title: Text(
-                    _BottomNav.items[i].$2,
-                    style: TextStyle(
-                      color: i == index ? C.onBtn : C.text,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  onTap: () => onTap(i),
-                ),
+              child: const Icon(Icons.savings_outlined, color: C.dark),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Rupi',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
               ),
             ),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: 32),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: C.lime,
+            foregroundColor: C.dark,
+            minimumSize: const Size(0, 48),
+          ),
+          onPressed: () => onTap(2),
+          icon: const Icon(Icons.add),
+          label: const Text(
+            'Tambah transaksi',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+        const SizedBox(height: 24),
+        for (final i in const [0, 1, 3, 4])
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Material(
+              color: i == index
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              child: ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                selected: i == index,
+                leading: Icon(
+                  _BottomNav.items[i].$1,
+                  color: i == index ? C.lime : const Color(0xFF9AA39C),
+                ),
+                title: Text(
+                  _BottomNav.items[i].$2,
+                  style: TextStyle(
+                    color: i == index ? Colors.white : const Color(0xFFB8C4B5),
+                    fontWeight: i == index ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+                onTap: () => onTap(i),
+              ),
+            ),
+          ),
+      ],
     ),
   );
 }
@@ -581,6 +601,67 @@ class _BerandaPageState extends State<BerandaPage> {
         ? 'Selamat sore,'
         : 'Selamat malam,';
     String uang(int v) => hide ? 'Rp•••••' : rp(v);
+    // Desktop: header selebar layar, isinya dua kolom (kartu | aksi cepat).
+    final lebar = MediaQuery.sizeOf(context).width >= 900;
+    Widget tengah(Widget w) => Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1080),
+        child: w,
+      ),
+    );
+    final isi = <Widget>[
+      const SizedBox(height: 20),
+      _KartuPager(
+        shell: s,
+        bulan: namaBulan[s.bulan.month - 1],
+        hide: hide,
+        uang: uang,
+        onToggle: () => setState(() => hide = !hide),
+      ),
+      const SizedBox(height: 22),
+      Row(
+        children: [
+          _Action(
+            'Pemasukan',
+            Icons.south_west,
+            const Color(0x2970BE5A),
+            () => s.openForm(tipe: 'masuk'),
+          ),
+          const SizedBox(width: 10),
+          _Action(
+            'Pengeluaran',
+            Icons.north_east,
+            const Color(0x24DC965A),
+            () => s.openForm(tipe: 'keluar'),
+          ),
+          const SizedBox(width: 10),
+          // ML Kit (OCR) hanya ada di Android/iOS.
+          if (!kIsWeb) ...[
+            _Action(
+              'Scan struk',
+              Icons.document_scanner_outlined,
+              const Color(0x245AA0BE),
+              () => s.scan(ImageSource.camera),
+            ),
+            const SizedBox(width: 10),
+          ],
+          _Action(
+            'Menu',
+            Icons.dashboard_customize_outlined,
+            // Selalu di atas latar glow gelap, jadi tetap terang di kedua mode.
+            const Color(0xFFF3F5F1),
+            () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MenuListPage()),
+              );
+              s.load(); // tandai lunas bisa menambah transaksi
+            },
+            dark: true,
+          ),
+        ],
+      ),
+    ];
 
     return RefreshIndicator(
       onRefresh: s.load,
@@ -591,122 +672,113 @@ class _BerandaPageState extends State<BerandaPage> {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 23,
-                          backgroundColor: C.lime,
-                          child: Text(
-                            namaCap[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: C.dark,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 18,
+                padding: EdgeInsets.fromLTRB(
+                  lebar ? 32 : 20,
+                  lebar ? 24 : 12,
+                  lebar ? 32 : 20,
+                  lebar ? 56 : 40,
+                ),
+                child: tengah(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 23,
+                            backgroundColor: C.lime,
+                            child: Text(
+                              namaCap[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: C.dark,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                salam,
-                                style: const TextStyle(
-                                  color: Color(0xFFB8C4B5),
-                                  fontSize: 12,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  salam,
+                                  style: const TextStyle(
+                                    color: Color(0xFFB8C4B5),
+                                    fontSize: 12,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                namaCap,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
+                                Text(
+                                  namaCap,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        _GlassButton(
-                          icon: Icons.help_outline,
-                          label: 'Panduan',
-                          onTap: () => bukaTutorial(context),
-                        ),
-                        const SizedBox(width: 8),
-                        _GlassButton(
-                          icon: C.gelap
-                              ? Icons.dark_mode_outlined
-                              : Icons.light_mode_outlined,
-                          label: 'Tampilan',
-                          onTap: () => pilihTema(context),
-                        ),
-                        const SizedBox(width: 8),
-                        _GlassButton(
-                          icon: Icons.logout,
-                          label: 'Keluar akun',
-                          onTap: s.logout,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    _KartuPager(
-                      shell: s,
-                      bulan: namaBulan[s.bulan.month - 1],
-                      hide: hide,
-                      uang: uang,
-                      onToggle: () => setState(() => hide = !hide),
-                    ),
-                    const SizedBox(height: 22),
-                    Row(
-                      children: [
-                        _Action(
-                          'Pemasukan',
-                          Icons.south_west,
-                          const Color(0x2970BE5A),
-                          () => s.openForm(tipe: 'masuk'),
-                        ),
-                        const SizedBox(width: 10),
-                        _Action(
-                          'Pengeluaran',
-                          Icons.north_east,
-                          const Color(0x24DC965A),
-                          () => s.openForm(tipe: 'keluar'),
-                        ),
-                        const SizedBox(width: 10),
-                        // ML Kit (OCR) hanya ada di Android/iOS.
-                        if (!kIsWeb) ...[
-                          _Action(
-                            'Scan struk',
-                            Icons.document_scanner_outlined,
-                            const Color(0x245AA0BE),
-                            () => s.scan(ImageSource.camera),
+                          _GlassButton(
+                            icon: Icons.help_outline,
+                            label: 'Panduan',
+                            onTap: () => bukaTutorial(context),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
+                          _GlassButton(
+                            icon: C.gelap
+                                ? Icons.dark_mode_outlined
+                                : Icons.light_mode_outlined,
+                            label: 'Tampilan',
+                            onTap: () => pilihTema(context),
+                          ),
+                          const SizedBox(width: 8),
+                          _GlassButton(
+                            icon: Icons.logout,
+                            label: 'Keluar akun',
+                            onTap: s.logout,
+                          ),
                         ],
-                        _Action(
-                          'Menu',
-                          Icons.dashboard_customize_outlined,
-                          // Selalu di atas latar glow gelap, jadi tetap terang di kedua mode.
-                          const Color(0xFFF3F5F1),
-                          () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const MenuListPage(),
+                      ),
+                      if (!lebar)
+                        ...isi
+                      else ...[
+                        const SizedBox(height: 28),
+                        Row(
+                          children: [
+                            Expanded(flex: 11, child: isi[1]),
+                            const SizedBox(width: 48),
+                            Expanded(
+                              flex: 9,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Aksi cepat',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Catat transaksi atau buka menu custom-mu.',
+                                    style: TextStyle(
+                                      color: Color(0xFFB8C4B5),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 18),
+                                  isi[3],
+                                ],
                               ),
-                            );
-                            s.load(); // tandai lunas bisa menambah transaksi
-                          },
-                          dark: true,
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -719,75 +791,80 @@ class _BerandaPageState extends State<BerandaPage> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
-              child: Column(
-                children: [
-                  for (final w in s.peringatanAnggaran())
-                    FadeIn(
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFBE6D9),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.warning_amber_rounded, color: C.expense),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                w,
-                                style: const TextStyle(fontSize: 13),
+              child: tengah(
+                Column(
+                  children: [
+                    for (final w in s.peringatanAnggaran())
+                      FadeIn(
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFBE6D9),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                color: C.expense,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  w,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  _Card(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Transaksi terakhir',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
+                    _Card(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Transaksi terakhir',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
-                            ),
-                            TextButton(
-                              onPressed: () => s.setState(() => s.tab = 1),
-                              child: Text(
-                                'Lihat semua',
-                                style: TextStyle(
-                                  color: C.income,
-                                  fontWeight: FontWeight.w600,
+                              TextButton(
+                                onPressed: () => s.setState(() => s.tab = 1),
+                                child: Text(
+                                  'Lihat semua',
+                                  style: TextStyle(
+                                    color: C.income,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        if (s.loading)
-                          const Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Center(child: TypingDots(color: C.green)),
-                          )
-                        else if (s.rows.isEmpty)
-                          const _Empty()
-                        else
-                          for (final r in s.rows.take(5))
-                            TrxTile(
-                              row: r,
-                              onTap: () => s.openForm(row: r),
-                            ),
-                      ],
+                            ],
+                          ),
+                          if (s.loading)
+                            const Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Center(child: TypingDots(color: C.green)),
+                            )
+                          else if (s.rows.isEmpty)
+                            const _Empty()
+                          else
+                            for (final r in s.rows.take(5))
+                              TrxTile(
+                                row: r,
+                                onTap: () => s.openForm(row: r),
+                              ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
