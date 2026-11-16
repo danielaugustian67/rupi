@@ -89,3 +89,43 @@ Future<void> jadwalTempo(List<Map<String, dynamic>> items) async {
     );
   }
 }
+
+/// Notifikasi tgl 1 jam 09:00 berisi ringkasan bulan yang baru lewat.
+/// shortcut: isinya dari data saat app terakhir dibuka bulan itu; transaksi
+/// setelahnya tidak ikut. Upgrade ke push dari server kalau perlu akurat.
+Future<void> jadwalRingkasan(
+  DateTime bulan,
+  int masuk,
+  int keluar,
+  String? terbesar,
+) async {
+  if (!_siap) return;
+  final t = tz.TZDateTime(tz.local, bulan.year, bulan.month + 1, 1, 9);
+  await _plugin.zonedSchedule(
+    id: _idRingkasan,
+    title: 'Ringkasan ${namaBulan[bulan.month - 1]}',
+    body:
+        'Masuk ${rp(masuk)}, keluar ${rp(keluar)}, selisih ${rp(masuk - keluar)}'
+        '${terbesar == null ? '' : '. Terbesar: $terbesar'}',
+    scheduledDate: t,
+    notificationDetails: _detail,
+    androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+  );
+}
+
+const _idRingkasan = 2;
+
+const namaBulan = [
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+];

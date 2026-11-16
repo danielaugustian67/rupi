@@ -30,3 +30,12 @@ create policy "own rows" on trx for all
 -- Akses dicek oleh boleh_akses_menu(menu_id) (security definer, tanpa rekursi RLS).
 -- Storage bucket privat 'lampiran': path "<menu_id>/<file>", akses mengikuti menunya.
 -- Lihat Supabase dashboard > Database > Migrations untuk SQL lengkap.
+
+-- === Kartu, transfer, rutin (migrasi via MCP: akun_kartu, transfer_rutin) ===
+-- akun(nama, saldo_awal) milik user_id; view akun_v (security_invoker) = saldo_awal + masuk - keluar.
+-- trx.akun_id -> akun (on delete set null); policy trx mengecek kartunya milik user.
+-- trx.transfer uuid: dua baris (keluar & masuk, kategori 'transfer') satu pasangan;
+--   tidak dihitung sebagai pemasukan/pengeluaran di app & chat AI.
+-- rutin(toko, kategori, tipe, jumlah, akun_id, hari 1-28, berikut): transaksi bulanan.
+--   rpc jalankan_rutin() (security invoker) mencatat semua yang sudah jatuh tempo, termasuk
+--   bulan yang terlewat, lalu memajukan `berikut`. Dipanggil app setiap memuat data.

@@ -26,14 +26,16 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Untuk mencatat transaksi dengan suara</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Untuk mengubah suaramu menjadi teks transaksi</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Untuk scan struk belanja</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Membuka Rupi dengan Face ID.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Untuk mencatat transaksi dengan suara</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Untuk memilih foto struk</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Untuk mengubah suaramu menjadi teks transaksi</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

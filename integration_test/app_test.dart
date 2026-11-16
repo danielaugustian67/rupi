@@ -28,6 +28,19 @@ Future<void> ketuk(WidgetTester t, Finder f) async {
   await t.pump(const Duration(milliseconds: 600));
 }
 
+/// pumpAndSettle dengan batas 5 dtk (animasi tak berujung tidak membuat tes macet).
+Future<void> settle(WidgetTester t) async {
+  try {
+    await t.pumpAndSettle(
+      const Duration(milliseconds: 100),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 5),
+    );
+  } on FlutterError {
+    // masih ada animasi berulang (mis. indikator loading); lanjut saja
+  }
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -84,11 +97,20 @@ void main() {
       nama,
     );
     await t.testTextInput.receiveAction(TextInputAction.done);
+    await ketuk(t, find.text('Ulangi tiap bulan'));
     await ketuk(t, find.widgetWithText(FilledButton, 'Simpan'));
 
-    // 4. Muncul di tab Transaksi
+    // 4. Muncul di tab Transaksi, juga di daftar rutin (lalu dihentikan)
     await ketuk(t, find.byIcon(Icons.format_list_bulleted));
     await tunggu(t, find.text(nama));
+    await ketuk(t, find.byTooltip('Transaksi rutin'));
+    await tunggu(t, find.text(nama));
+    await ketuk(t, find.byTooltip('Hentikan'));
+    await ketuk(t, find.widgetWithText(TextButton, 'Hentikan'));
+    await t.pump(const Duration(seconds: 2));
+    expect(find.text(nama), findsNothing);
+    await t.pageBack();
+    await t.pump(const Duration(seconds: 1));
 
     // 5. Tab Laporan & Chat terbuka tanpa error
     await ketuk(t, find.byIcon(Icons.bar_chart_rounded));
@@ -229,34 +251,61 @@ void main() {
     await t.pageBack();
     await t.pump(const Duration(seconds: 1));
 
-    // 11. Kartu saldo: geser ke "Tambah kartu", buat, cek, lalu hapus
-    await ketuk(t, beranda);
-    await t.scrollUntilVisible(
-      find.byType(PageView),
-      -300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    for (
-      var n = 0;
-      n < 15 && find.text('Tambah kartu').hitTestable().evaluate().isEmpty;
-      n++
-    ) {
-      await t.drag(find.byType(PageView), const Offset(-500, 0));
-      await t.pumpAndSettle();
+    // 11. Kartu saldo: buat 2 kartu, transfer antar kartu, hapus semuanya
+    Future<void> geserKe(Finder f) async {
+      await ketuk(t, beranda);
+      await t.scrollUntilVisible(
+        find.byType(PageView),
+        -300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // Cari ke kanan dulu, lalu balik ke kiri kalau sudah mentok.
+      for (final dx in [-500.0, 500.0]) {
+        for (var n = 0; n < 12 && f.hitTestable().evaluate().isEmpty; n++) {
+          await t.drag(find.byType(PageView), Offset(dx, 0));
+          await settle(t);
+        }
+      }
     }
-    await ketuk(t, find.text('Tambah kartu'));
-    final kartu = 'Kartu E2E ${DateTime.now().millisecondsSinceEpoch % 1000}';
-    await t.enterText(find.widgetWithText(TextField, 'Nama kartu'), kartu);
-    await t.enterText(find.widgetWithText(TextField, 'Saldo awal'), '54321');
-    await ketuk(t, find.widgetWithText(TextButton, 'Simpan'));
-    await tunggu(t, find.text('$kartu · tahan untuk ubah'));
+
+    final id = DateTime.now().millisecondsSinceEpoch % 1000;
+    final kartu = 'Kartu E2E $id', kartu2 = 'Dompet E2E $id';
+    for (final (k, saldo) in [(kartu, '54321'), (kartu2, '0')]) {
+      await geserKe(find.text('Tambah kartu'));
+      await ketuk(t, find.text('Tambah kartu'));
+      await t.enterText(find.widgetWithText(TextField, 'Nama kartu'), k);
+      await t.enterText(find.widgetWithText(TextField, 'Saldo awal'), saldo);
+      await ketuk(t, find.widgetWithText(TextButton, 'Simpan'));
+      await t.pump(const Duration(seconds: 2));
+    }
+    await geserKe(find.text('$kartu'));
     await tunggu(t, find.text('Rp54.321'));
-    await t.longPress(find.text('$kartu · tahan untuk ubah'));
-    await t.pumpAndSettle();
-    await ketuk(t, find.widgetWithText(TextButton, 'Hapus'));
-    await ketuk(t, find.widgetWithText(TextButton, 'Hapus').last);
+
+    await ketuk(t, find.byIcon(Icons.add));
+    await ketuk(t, find.text('Transfer'));
+    await t.enterText(find.widgetWithText(TextField, 'Jumlah (Rp)'), '4321');
+    await ketuk(t, find.widgetWithText(TextButton, 'Transfer'));
     await t.pump(const Duration(seconds: 2));
-    expect(find.text('$kartu · tahan untuk ubah'), findsNothing);
+    await geserKe(find.text('$kartu'));
+    await tunggu(t, find.text('Rp50.000'));
+    // Transfer tampil di daftar, bisa dihapus (kedua sisinya)
+    await ketuk(t, find.byIcon(Icons.format_list_bulleted));
+    await ketuk(t, find.text('Transfer ke $kartu2'));
+    await ketuk(t, find.widgetWithText(TextButton, 'Hapus transfer'));
+    await t.pump(const Duration(seconds: 2));
+    expect(find.text('Transfer dari $kartu'), findsNothing);
+
+    for (final k in [kartu, kartu2]) {
+      await geserKe(find.text('$k'));
+      await settle(t);
+      await t.tap(find.byTooltip('Ubah kartu').hitTestable().first);
+      await t.pump(const Duration(milliseconds: 700));
+      await tunggu(t, find.text('Ubah kartu'));
+      await ketuk(t, find.widgetWithText(TextButton, 'Hapus'));
+      await ketuk(t, find.widgetWithText(TextButton, 'Hapus').last);
+      await t.pump(const Duration(seconds: 2));
+      expect(find.text('$k'), findsNothing);
+    }
 
     // 12. Chat AI menjawab
     await ketuk(t, find.byIcon(Icons.chat_bubble_outline));

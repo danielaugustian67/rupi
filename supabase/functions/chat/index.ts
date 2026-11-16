@@ -18,19 +18,20 @@ const json = (body: unknown, status = 200) =>
 
 const rp = (n: number) => "Rp" + Math.round(n).toLocaleString("id-ID");
 
-type Trx = { toko: string; kategori: string; tipe: string; jumlah: number; tanggal: string };
+type Trx = { toko: string; kategori: string; tipe: string; jumlah: number; tanggal: string; transfer: string | null };
 type Item = { judul: string; nominal: number; deskripsi: string | null; tanggal: string; tenggat: string | null; lunas: boolean };
 type Menu = {
   nama: string; pakai_lunas: boolean; pakai_tenggat: boolean; target: number | null; menu_item: Item[];
 };
 
 type Akun = { nama: string; saldo: number };
+type Anggaran = { kategori: string; batas: number };
 
 /// Ringkasan data user (3 bulan terakhir) sebagai konteks untuk AI.
-
-function ringkas(trx: Trx[], menus: Menu[], akun: Akun[], today: string): string {
+function ringkas(trx: Trx[], menus: Menu[], akun: Akun[], anggaran: Anggaran[], today: string): string {
   const perBulan: Record<string, { masuk: number; keluar: number; kat: Record<string, number> }> = {};
   for (const t of trx) {
+    if (t.transfer) continue; // pindah antar kartu, bukan pemasukan/pengeluaran
     const b = t.tanggal.slice(0, 7);
     const m = (perBulan[b] ??= { masuk: 0, keluar: 0, kat: {} });
     if (t.tipe === "masuk") m.masuk += t.jumlah;
@@ -69,6 +70,9 @@ function ringkas(trx: Trx[], menus: Menu[], akun: Akun[], today: string): string
   lines.push("Kartu (e-wallet/rekening) dan saldonya sekarang:");
   for (const a of akun) lines.push(`- ${a.nama}: ${rp(a.saldo)}`);
   if (akun.length === 0) lines.push("- belum ada");
+  lines.push("Anggaran (batas pengeluaran per bulan per kategori; bandingkan dengan keluar per kategori bulan ini):");
+  for (const a of anggaran) lines.push(`- ${a.kategori}: ${rp(a.batas)}`);
+  if (anggaran.length === 0) lines.push("- belum diatur");
   return lines.join("\n");
 }
 
@@ -110,15 +114,16 @@ Deno.serve(async (req) => {
   const now = new Date(Date.now() + 7 * 3600_000); // WIB
   const today = now.toISOString().slice(0, 10);
   const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1)).toISOString().slice(0, 10);
-  const [r1, r2, r3] = await Promise.all([
-    userDb.from("trx").select("toko,kategori,tipe,jumlah,tanggal").gte("tanggal", from)
+  const [r1, r2, r3, r4] = await Promise.all([
+    userDb.from("trx").select("toko,kategori,tipe,jumlah,tanggal,transfer").gte("tanggal", from)
       .order("tanggal", { ascending: false }).limit(500),
     userDb.from("menu").select("nama,pakai_lunas,pakai_tenggat,target,menu_item(judul,nominal,deskripsi,tanggal,tenggat,lunas)")
       .limit(30),
     userDb.from("akun_v").select("nama,saldo").limit(30),
+    userDb.from("anggaran").select("kategori,batas").limit(30),
   ]);
-  if (r1.error || r2.error || r3.error) {
-    console.error("db", r1.error?.message, r2.error?.message, r3.error?.message);
+  if (r1.error || r2.error || r3.error || r4.error) {
+    console.error("db", r1.error?.message, r2.error?.message, r3.error?.message, r4.error?.message);
     return json({ error: "db" }, 500);
   }
 
@@ -127,7 +132,7 @@ Deno.serve(async (req) => {
     "(maks ~6 kalimat atau poin pendek), tanpa markdown tabel. " +
     "Gunakan HANYA data di bawah untuk angka; jangan mengarang transaksi. Kalau data tidak cukup, bilang terus terang. " +
     "Format uang: Rp25.000.\n\n" +
-    ringkas((r1.data ?? []) as Trx[], (r2.data ?? []) as Menu[], (r3.data ?? []) as Akun[], today);
+    ringkas((r1.data ?? []) as Trx[], (r2.data ?? []) as Menu[], (r3.data ?? []) as Akun[], (r4.data ?? []) as Anggaran[], today);
 
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 20000);

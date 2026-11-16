@@ -1,3 +1,4 @@
+import 'package:keuangan_ai/rutin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:keuangan_ai/chat.dart' show pesanError;
 import 'package:keuangan_ai/format.dart';
@@ -124,5 +125,46 @@ void main() {
     final now = DateTime(2026, 11, 14, 10);
     expect(waktuTempo('2026-11-20', now), DateTime(2026, 11, 20, 9));
     expect(waktuTempo('2026-11-14', now), null);
+  });
+
+  test('rutin: tanggal >28 jadi 28, berikutnya bulan depan', () {
+    final a = jadwalRutin(DateTime(2026, 1, 31));
+    expect(a.hari, 28);
+    expect(a.berikut, DateTime(2026, 2, 28));
+    final b = jadwalRutin(DateTime(2026, 12, 5));
+    expect(b.berikut, DateTime(2027, 1, 5));
+  });
+
+  test('transfer tidak dihitung sebagai pengeluaran', () {
+    final rows = [
+      {
+        'tipe': 'keluar',
+        'kategori': 'makan',
+        'jumlah': 10,
+        'tanggal': '2026-11-02',
+      },
+      {
+        'tipe': 'keluar',
+        'kategori': 'transfer',
+        'jumlah': 99,
+        'tanggal': '2026-11-02',
+        'transfer': 'x',
+      },
+    ];
+    expect(keluarPerKategori(rows).map((e) => e.key), ['makan']);
+    expect(keluarPerHari(rows, DateTime(2026, 11))[1], 10);
+  });
+
+  test('tabelCsv: gabung kolom, escape, nilai bersarang jadi JSON', () {
+    final csv = tabelCsv([
+      {'a': 1, 'b': 'x,y'},
+      {
+        'a': 2,
+        'c': {'k': 1},
+      },
+    ]);
+    expect(csv.split('\n')[0], 'a,b,c');
+    expect(csv, contains('1,"x,y",'));
+    expect(csv, contains('2,,"{""k"":1}"'));
   });
 }

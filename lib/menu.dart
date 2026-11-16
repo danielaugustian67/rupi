@@ -608,6 +608,16 @@ class MenuPage extends StatefulWidget {
 class _MenuPageState extends State<MenuPage> {
   late Row_ menu = widget.menu;
   List<Row_> items = [];
+  Map<String, String> anggota = {}; // user_id -> email teman
+
+  /// Siapa yang menambah item; hanya ditampilkan kalau menu dibagikan.
+  String? oleh(Row_ i) {
+    if (anggota.isEmpty) return null;
+    final u = '${i['created_by']}';
+    if (u == _uid) return 'Kamu';
+    return anggota[u]?.split('@').first ?? 'Pemilik';
+  }
+
   bool loading = true;
 
   bool get pemilik => menu['user_id'] == _uid;
@@ -628,7 +638,16 @@ class _MenuPageState extends State<MenuPage> {
           .order('lunas')
           .order('tanggal', ascending: false)
           .order('id', ascending: false);
-      if (mounted) setState(() => items = r);
+      final a = await db
+          .from('menu_anggota')
+          .select('user_id,email')
+          .eq('menu_id', id);
+      if (mounted) {
+        setState(() {
+          items = r;
+          anggota = {for (final x in a) '${x['user_id']}': '${x['email']}'};
+        });
+      }
     } catch (e) {
       if (mounted) _toast(context, 'Gagal memuat: ${_pesan(e)}');
     } finally {
@@ -849,6 +868,7 @@ class _MenuPageState extends State<MenuPage> {
                   child: _ItemTile(
                     item: i,
                     menu: menu,
+                    oleh: oleh(i),
                     onTap: () => _item(i),
                     onCek: lunasOn ? () => _toggleLunas(i) : null,
                   ),
@@ -862,9 +882,11 @@ class _MenuPageState extends State<MenuPage> {
 
 class _ItemTile extends StatelessWidget {
   final Row_ item, menu;
+  final String? oleh;
   final VoidCallback onTap;
   final VoidCallback? onCek;
   const _ItemTile({
+    this.oleh,
     required this.item,
     required this.menu,
     required this.onTap,
@@ -924,6 +946,7 @@ class _ItemTile extends StatelessWidget {
                       ),
                       Text(
                         [
+                          if (oleh != null) oleh!,
                           '${item['tanggal']}',
                           if (tenggat != null) 'tempo $tenggat',
                           if ((item['deskripsi'] ?? '').toString().isNotEmpty)
@@ -1332,20 +1355,38 @@ class _ItemFormState extends State<ItemForm> {
           if (m['pakai_foto'] == true) ...[
             const SizedBox(height: 12),
             if (fotoBaru != null || fotoUrl != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: fotoBaru != null
-                    ? FutureBuilder(
-                        future: fotoBaru!.readAsBytes(),
-                        builder: (_, s) => s.hasData
-                            ? Image.memory(
-                                s.data!,
-                                height: 220,
-                                fit: BoxFit.cover,
-                              )
-                            : const SizedBox(height: 220),
-                      )
-                    : Image.network(fotoUrl!, height: 220, fit: BoxFit.cover),
+              GestureDetector(
+                onTap: fotoUrl == null || fotoBaru != null
+                    ? null
+                    : () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          fullscreenDialog: true,
+                          builder: (_) => _FotoPenuh(url: fotoUrl!),
+                        ),
+                      ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: fotoBaru != null
+                      ? FutureBuilder(
+                          future: fotoBaru!.readAsBytes(),
+                          builder: (_, s) => s.hasData
+                              ? Image.memory(
+                                  s.data!,
+                                  height: 220,
+                                  fit: BoxFit.cover,
+                                )
+                              : const SizedBox(height: 220),
+                        )
+                      : Semantics(
+                          label: 'Foto lampiran, ketuk untuk perbesar',
+                          child: Image.network(
+                            fotoUrl!,
+                            height: 220,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                ),
               ),
             const SizedBox(height: 8),
             Row(
@@ -1407,6 +1448,24 @@ class _Pilih extends StatelessWidget {
               onPressed: onClear,
             ),
       onTap: onTap,
+    ),
+  );
+}
+
+/// Foto lampiran layar penuh, bisa dicubit untuk zoom.
+class _FotoPenuh extends StatelessWidget {
+  final String url;
+  const _FotoPenuh({required this.url});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.black,
+    appBar: AppBar(
+      backgroundColor: Colors.black,
+      foregroundColor: Colors.white,
+    ),
+    body: InteractiveViewer(
+      maxScale: 5,
+      child: Center(child: Image.network(url)),
     ),
   );
 }

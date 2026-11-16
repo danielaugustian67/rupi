@@ -19,8 +19,7 @@ void main() {
       );
     }
     final img = await rec.endRecording().toImage(3000, 2000);
-    final png = (await img.toByteData(format: ui.ImageByteFormat.png))!
-        .buffer
+    final png = (await img.toByteData(format: ui.ImageByteFormat.png))!.buffer
         .asUint8List();
     final w = await keWebp(png);
     expect(String.fromCharCodes(w.sublist(0, 4)), 'RIFF');

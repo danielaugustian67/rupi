@@ -1,5 +1,6 @@
 package com.daniel.keuangan_ai
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// FragmentActivity dibutuhkan local_auth (sidik jari / wajah).
+class MainActivity : FlutterFragmentActivity()

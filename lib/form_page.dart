@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'format.dart';
 import 'main.dart' show db;
 import 'receipt.dart' show findTotal;
+import 'rutin.dart' show jadwalRutin;
 import 'theme.dart';
 
 const kategoriList = [
@@ -50,6 +51,7 @@ class _FormPageState extends State<FormPage> {
   DateTime tanggal = DateTime.now();
   bool busy = false;
   Object? akunId; // null = tanpa kartu
+  bool ulang = false; // juga buat transaksi rutin bulanan
 
   @override
   void initState() {
@@ -126,6 +128,20 @@ class _FormPageState extends State<FormPage> {
       r == null
           ? await db.from('trx').insert(data)
           : await db.from('trx').update(data).eq('id', r['id']);
+      if (r == null && ulang) {
+        final j = jadwalRutin(tanggal);
+        final rutin = Map.of(data)..remove('tanggal');
+        try {
+          await db.from('rutin').insert({
+            ...rutin,
+            'hari': j.hari,
+            'berikut': ymd(j.berikut),
+          });
+        } catch (e) {
+          // Transaksinya sudah tersimpan; jangan biarkan user menyimpan dobel.
+          if (mounted) _toast('Tersimpan, tapi gagal membuat rutin: $e');
+        }
+      }
     } catch (e) {
       // Jangan tutup form kalau gagal simpan, supaya isian tidak hilang.
       if (mounted) {
@@ -254,6 +270,25 @@ class _FormPageState extends State<FormPage> {
               onTap: _pilihTanggal,
             ),
           ),
+          if (widget.row == null) ...[
+            const SizedBox(height: 12),
+            Material(
+              color: C.card,
+              borderRadius: BorderRadius.circular(16),
+              child: SwitchListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                secondary: const Icon(Icons.repeat),
+                title: const Text('Ulangi tiap bulan'),
+                subtitle: Text(
+                  'Dicatat otomatis tiap tanggal ${jadwalRutin(tanggal).hari}',
+                ),
+                value: ulang,
+                onChanged: (v) => setState(() => ulang = v),
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           FilledButton(
             onPressed: busy ? null : _save,

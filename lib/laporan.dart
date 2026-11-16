@@ -8,13 +8,16 @@ import 'package:share_plus/share_plus.dart';
 import 'anim.dart';
 import 'form_page.dart' show kategoriList;
 import 'format.dart';
+import 'main.dart' show db;
 import 'pages.dart' show ShellState, BulanSwitcher, Trx;
 import 'theme.dart';
 
 /// Total pengeluaran per kategori, terbesar dulu.
 List<MapEntry<String, int>> keluarPerKategori(List<Trx> rows) {
   final m = <String, int>{};
-  for (final r in rows.where((r) => r['tipe'] == 'keluar')) {
+  for (final r in rows.where(
+    (r) => r['tipe'] == 'keluar' && r['transfer'] == null,
+  )) {
     final k = '${r['kategori']}';
     m[k] = (m[k] ?? 0) + (r['jumlah'] as num).toInt();
   }
@@ -49,10 +52,27 @@ String keCsv(List<Trx> rows) {
   return b.toString();
 }
 
+/// CSV umum: kolom = gabungan semua key (urut kemunculan), nilai bersarang jadi JSON.
+String tabelCsv(List<Map<String, dynamic>> rows) {
+  String sel(Object? v) {
+    final s = v is Map || v is List ? jsonEncode(v) : '${v ?? ''}';
+    return RegExp(r'[",\n]').hasMatch(s) ? '"${s.replaceAll('"', '""')}"' : s;
+  }
+
+  final kol = <String>{for (final r in rows) ...r.keys}.toList();
+  final b = StringBuffer('${kol.join(',')}\n');
+  for (final r in rows) {
+    b.writeln(kol.map((k) => sel(r[k])).join(','));
+  }
+  return b.toString();
+}
+
 /// Pengeluaran per tanggal (index 0 = tanggal 1).
 List<int> keluarPerHari(List<Trx> rows, DateTime bulan) {
   final hari = List.filled(DateTime(bulan.year, bulan.month + 1, 0).day, 0);
-  for (final r in rows.where((r) => r['tipe'] == 'keluar')) {
+  for (final r in rows.where(
+    (r) => r['tipe'] == 'keluar' && r['transfer'] == null,
+  )) {
     final d = DateTime.parse('${r['tanggal']}').day;
     hari[d - 1] += (r['jumlah'] as num).toInt();
   }
@@ -100,6 +120,11 @@ class LaporanPage extends StatelessWidget {
                   tooltip: 'Ekspor CSV',
                   onPressed: s.rows.isEmpty ? null : () => _ekspor(context),
                   icon: const Icon(Icons.ios_share),
+                ),
+                IconButton(
+                  tooltip: 'Backup semua data',
+                  onPressed: () => _backup(context),
+                  icon: const Icon(Icons.backup_outlined),
                 ),
                 BulanSwitcher(shell: s),
               ],
@@ -249,6 +274,61 @@ extension on LaporanPage {
             : box.localToGlobal(Offset.zero) & box.size,
       ),
     );
+  }
+
+  /// Semua data milik user (dan menu yang dibagikan) sebagai beberapa file CSV.
+  Future<void> _backup(BuildContext context) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final m = ScaffoldMessenger.of(context);
+    m.showSnackBar(const SnackBar(content: Text('Menyiapkan backup…')));
+    try {
+      // PostgREST membatasi 1000 baris per request, jadi ambil per halaman.
+      Future<List<Map<String, dynamic>>> semua(String t) async {
+        final out = <Map<String, dynamic>>[];
+        for (var i = 0; ; i += 1000) {
+          final r = await db.from(t).select().order('id').range(i, i + 999);
+          out.addAll(r);
+          if (r.length < 1000) return out;
+        }
+      }
+
+      final tgl = DateTime.now().toIso8601String().substring(0, 10);
+      final files = <XFile>[];
+      for (final t in [
+        'trx',
+        'akun',
+        'menu',
+        'menu_item',
+        'rutin',
+        'anggaran',
+      ]) {
+        final rows = await semua(t);
+        if (rows.isEmpty) continue;
+        files.add(
+          XFile.fromData(
+            Uint8List.fromList(utf8.encode(tabelCsv(rows))),
+            mimeType: 'text/csv',
+            name: 'rupi-$t-$tgl.csv',
+          ),
+        );
+      }
+      m.hideCurrentSnackBar();
+      if (files.isEmpty) {
+        m.showSnackBar(const SnackBar(content: Text('Belum ada data')));
+        return;
+      }
+      await SharePlus.instance.share(
+        ShareParams(
+          files: files,
+          fileNameOverrides: [for (final f in files) f.name],
+          sharePositionOrigin: box == null
+              ? null
+              : box.localToGlobal(Offset.zero) & box.size,
+        ),
+      );
+    } catch (e) {
+      m.showSnackBar(SnackBar(content: Text('Backup gagal: $e')));
+    }
   }
 
   Future<void> _aturAnggaran(BuildContext context, String k) async {

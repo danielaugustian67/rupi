@@ -1,7 +1,9 @@
 import 'dart:ui' show ImageFilter;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -10,31 +12,18 @@ import 'akun.dart';
 import 'anim.dart';
 import 'chat.dart';
 import 'form_page.dart';
+import 'kunci.dart';
 import 'format.dart';
 import 'laporan.dart';
 import 'main.dart' show db, LoginPage;
 import 'receipt.dart' show parseWithAi;
+import 'rutin.dart';
 import 'notif.dart';
 import 'menu.dart';
 import 'theme.dart';
 import 'tutorial.dart';
 
 typedef Trx = Map<String, dynamic>;
-
-const _bulanNama = [
-  'Januari',
-  'Februari',
-  'Maret',
-  'April',
-  'Mei',
-  'Juni',
-  'Juli',
-  'Agustus',
-  'September',
-  'Oktober',
-  'November',
-  'Desember',
-];
 
 /// Kerangka aplikasi: memegang data bulan aktif + bottom nav.
 class Shell extends StatefulWidget {
@@ -50,10 +39,35 @@ class ShellState extends State<Shell> {
   Map<String, int> anggaran = {}; // kategori -> batas per bulan
   List<Map<String, dynamic>> akun = []; // kartu saldo (+ saldo dari view)
   bool loading = true;
+  bool terkunci = false;
+  DateTime? _sembunyi;
+  late final AppLifecycleListener _siklus;
+
+  static final _android =
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   @override
   void initState() {
     super.initState();
+    kunciAktif().then((on) {
+      if (on && mounted) _kunci();
+    });
+    // Kunci lagi kalau app ditinggal di background lebih dari 1 menit.
+    _siklus = AppLifecycleListener(
+      onHide: () => _sembunyi = DateTime.now(),
+      onShow: () async {
+        final t = _sembunyi;
+        if (t != null &&
+            DateTime.now().difference(t).inSeconds > 60 &&
+            await kunciAktif()) {
+          _kunci();
+        }
+      },
+    );
+    if (_android) {
+      HomeWidget.initiallyLaunchedFromHomeWidget().then(_dariWidget);
+      HomeWidget.widgetClicked.listen(_dariWidget);
+    }
     load();
     // Izin notifikasi ditanya setelah panduan, supaya dialognya tidak menutupi.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -62,8 +76,52 @@ class ShellState extends State<Shell> {
     });
   }
 
+  @override
+  void dispose() {
+    _siklus.dispose();
+    super.dispose();
+  }
+
+  void _dariWidget(Uri? u) {
+    if (u?.host == 'tambah' && mounted) openTambah();
+  }
+
+  Future<void> _kunci() async {
+    setState(() => terkunci = true);
+    if (await verifikasi() && mounted) setState(() => terkunci = false);
+  }
+
+  /// Widget layar utama (Android) & notifikasi ringkasan ikut data bulan ini.
+  Future<void> _perbaruiLuar() async {
+    final now = DateTime.now();
+    if (kIsWeb || bulan.year != now.year || bulan.month != now.month) return;
+    final masuk = sum('masuk'), keluar = sum('keluar');
+    final kat = keluarPerKategori(rows);
+    try {
+      await jadwalRingkasan(
+        bulan,
+        masuk,
+        keluar,
+        kat.isEmpty ? null : '${kat.first.key} ${rp(kat.first.value)}',
+      );
+      if (_android) {
+        await HomeWidget.saveWidgetData(
+          'judul',
+          'Saldo ${namaBulan[bulan.month - 1]}',
+        );
+        await HomeWidget.saveWidgetData('saldo', rp(masuk - keluar));
+        await HomeWidget.saveWidgetData(
+          'rincian',
+          '▲ ${rp(masuk)}   ▼ ${rp(keluar)}',
+        );
+        await HomeWidget.updateWidget(androidName: 'RupiWidget');
+      }
+    } catch (_) {} // widget/notifikasi opsional
+  }
+
   Future<void> load() async {
     try {
+      await db.rpc('jalankan_rutin'); // catat transaksi rutin yang jatuh tempo
       final r = await db
           .from('trx')
           .select()
@@ -72,7 +130,10 @@ class ShellState extends State<Shell> {
           .order('tanggal', ascending: false)
           .order('id', ascending: false);
       final a = await db.from('anggaran').select('kategori,batas');
-      final k = await db.from('akun_v').select().order('created_at');
+      final k = await db
+          .from('akun_v')
+          .select()
+          .order('created_at', ascending: true);
       if (mounted) {
         setState(() {
           rows = r;
@@ -81,6 +142,7 @@ class ShellState extends State<Shell> {
             for (final x in a) '${x['kategori']}': (x['batas'] as num).toInt(),
           };
         });
+        _perbaruiLuar();
       }
     } catch (e) {
       _toast('Gagal memuat: $e');
@@ -142,6 +204,10 @@ class ShellState extends State<Shell> {
     bool isReceipt = false,
     Map<String, dynamic>? ai,
   }) async {
+    if (row?['transfer'] != null) {
+      if (await hapusTransfer(context, row!)) load();
+      return;
+    }
     final changed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -271,6 +337,10 @@ class ShellState extends State<Shell> {
           Navigator.pop(c);
           openForm();
         },
+        onTransfer: () async {
+          Navigator.pop(c);
+          if (await formTransfer(context, akun)) load();
+        },
         onMenu: () {
           Navigator.pop(c);
           Navigator.push(
@@ -297,7 +367,7 @@ class ShellState extends State<Shell> {
 
   /// Total bulan ini per tipe; [akunId] membatasi ke satu kartu.
   int sum(String tipe, [Object? akunId]) => rows
-      .where((r) => r['tipe'] == tipe)
+      .where((r) => r['tipe'] == tipe && r['transfer'] == null)
       .where((r) => akunId == null || r['akun_id'] == akunId)
       .fold(0, (s, r) => s + (r['jumlah'] as num).toInt());
 
@@ -310,12 +380,26 @@ class ShellState extends State<Shell> {
       LaporanPage(shell: this),
       const ChatPage(),
     ];
-    return Scaffold(
-      body: pages[tab],
-      bottomNavigationBar: _BottomNav(
-        index: tab,
-        onTap: (i) => i == 2 ? openTambah() : setState(() => tab = i),
-      ),
+    return Stack(
+      children: [
+        Scaffold(
+          body: pages[tab],
+          bottomNavigationBar: _BottomNav(
+            index: tab,
+            onTap: (i) => i == 2 ? openTambah() : setState(() => tab = i),
+          ),
+        ),
+        if (terkunci)
+          Positioned.fill(
+            child: LayarKunci(
+              onBuka: _kunci,
+              onLogout: () async {
+                await setKunci(false);
+                logout();
+              },
+            ),
+          ),
+      ],
     );
   }
 }
@@ -485,7 +569,7 @@ class _BerandaPageState extends State<BerandaPage> {
                     const SizedBox(height: 20),
                     _KartuPager(
                       shell: s,
-                      bulan: _bulanNama[s.bulan.month - 1],
+                      bulan: namaBulan[s.bulan.month - 1],
                       hide: hide,
                       uang: uang,
                       onToggle: () => setState(() => hide = !hide),
@@ -636,12 +720,16 @@ class TransaksiPage extends StatefulWidget {
 class _TransaksiPageState extends State<TransaksiPage> {
   String filter = 'semua';
   String q = '';
+  String? kat; // null = semua kategori
+  Object? kartu; // null = semua kartu
 
   @override
   Widget build(BuildContext context) {
     final s = widget.shell;
     final shown = s.rows.where((r) {
       if (filter != 'semua' && r['tipe'] != filter) return false;
+      if (kat != null && r['kategori'] != kat) return false;
+      if (kartu != null && r['akun_id'] != kartu) return false;
       if (q.isEmpty) return true;
       final hay = '${r['toko']} ${r['kategori']}'.toLowerCase();
       return hay.contains(q.toLowerCase());
@@ -665,6 +753,17 @@ class _TransaksiPageState extends State<TransaksiPage> {
                     'Transaksi',
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Transaksi rutin',
+                  icon: const Icon(Icons.repeat),
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RutinPage()),
+                    );
+                    s.load();
+                  },
                 ),
                 BulanSwitcher(shell: s),
               ],
@@ -703,6 +802,23 @@ class _TransaksiPageState extends State<TransaksiPage> {
                       fontWeight: FontWeight.w600,
                     ),
                     onSelected: (_) => setState(() => filter = f.$1),
+                  ),
+                _Saring<String>(
+                  label: kat == null ? 'Kategori' : kat!,
+                  aktif: kat != null,
+                  pilihan: {
+                    for (final k in [...kategoriList, 'transfer']) k: k,
+                  },
+                  onPilih: (v) => setState(() => kat = v),
+                ),
+                if (s.akun.isNotEmpty)
+                  _Saring<Object>(
+                    label: kartu == null
+                        ? 'Kartu'
+                        : '${s.akun.firstWhere((a) => a['id'] == kartu, orElse: () => {'nama': 'Kartu'})['nama']}',
+                    aktif: kartu != null,
+                    pilihan: {for (final a in s.akun) a['id']: '${a['nama']}'},
+                    onPilih: (v) => setState(() => kartu = v),
                   ),
               ],
             ),
@@ -764,7 +880,7 @@ class _TransaksiPageState extends State<TransaksiPage> {
     final diff = today.difference(d).inDays;
     if (diff == 0) return 'Hari ini';
     if (diff == 1) return 'Kemarin';
-    return '${d.day} ${_bulanNama[d.month - 1]}';
+    return '${d.day} ${namaBulan[d.month - 1]}';
   }
 
   String _subtotal(List<Trx> rs) {
@@ -779,8 +895,9 @@ class _TransaksiPageState extends State<TransaksiPage> {
 /// Sheet "Tambah": ketik bebas + pilihan input.
 class TambahSheet extends StatefulWidget {
   final ValueChanged<String> onText;
-  final VoidCallback onCamera, onGallery, onManual, onMenu;
+  final VoidCallback onCamera, onGallery, onManual, onMenu, onTransfer;
   const TambahSheet({
+    required this.onTransfer,
     super.key,
     required this.onText,
     required this.onCamera,
@@ -979,6 +1096,12 @@ class _TambahSheetState extends State<TambahSheet> {
                   Icons.dashboard_customize_outlined,
                   widget.onMenu,
                 ),
+                _Opt(
+                  'Transfer',
+                  'Antar kartu',
+                  Icons.swap_horiz,
+                  widget.onTransfer,
+                ),
               ],
             ),
           ],
@@ -1001,6 +1124,7 @@ class TrxTile extends StatelessWidget {
     'tagihan': Color(0xFFECE6F5),
     'hiburan': Color(0xFFF7E1E8),
     'kesehatan': Color(0xFFDDF0EE),
+    'transfer': Color(0xFFE6EBEA),
   };
 
   @override
@@ -1085,7 +1209,7 @@ class BulanSwitcher extends StatelessWidget {
             icon: const Icon(Icons.chevron_left),
           ),
           Text(
-            '${_bulanNama[s.bulan.month - 1].substring(0, 3)} ${s.bulan.year}',
+            '${namaBulan[s.bulan.month - 1].substring(0, 3)} ${s.bulan.year}',
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
           ),
           IconButton(
@@ -1290,7 +1414,9 @@ class _BankCard extends StatelessWidget {
     letterSpacing: -0.5,
   );
   final VoidCallback onToggle;
+  final VoidCallback? onEdit;
   const _BankCard({
+    this.onEdit,
     required this.judul,
     this.pojok = 'RUPI',
     required this.saldo,
@@ -1375,6 +1501,16 @@ class _BankCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (onEdit != null)
+                            IconButton(
+                              tooltip: 'Ubah kartu',
+                              onPressed: onEdit,
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                color: ink,
+                                size: 20,
+                              ),
+                            ),
                           IconButton(
                             tooltip: hidden
                                 ? 'Tampilkan saldo'
@@ -1525,6 +1661,7 @@ void pilihTema(BuildContext context) {
                 Navigator.pop(ctx);
               },
             ),
+          if (!kIsWeb) const _SwitchKunci(),
           const SizedBox(height: 8),
         ],
       ),
@@ -1580,18 +1717,16 @@ class _KartuPagerState extends State<_KartuPager> {
         onToggle: widget.onToggle,
       ),
       for (final a in s.akun)
-        GestureDetector(
-          onLongPress: () => _form(a),
-          child: _BankCard(
-            judul: '${a['nama']} · tahan untuk ubah',
-            pojok: '${a['nama']}',
-            saldo: uang((a['saldo'] as num).toInt()),
-            saldoNum: (a['saldo'] as num).toInt(),
-            masuk: uang(s.sum('masuk', a['id'])),
-            keluar: uang(s.sum('keluar', a['id'])),
-            hidden: widget.hide,
-            onToggle: widget.onToggle,
-          ),
+        _BankCard(
+          onEdit: () => _form(a),
+          judul: '${a['nama']}',
+          pojok: '${a['nama']}',
+          saldo: uang((a['saldo'] as num).toInt()),
+          saldoNum: (a['saldo'] as num).toInt(),
+          masuk: uang(s.sum('masuk', a['id'])),
+          keluar: uang(s.sum('keluar', a['id'])),
+          hidden: widget.hide,
+          onToggle: widget.onToggle,
         ),
       Semantics(
         button: true,
@@ -1672,4 +1807,84 @@ class _KartuPagerState extends State<_KartuPager> {
       ],
     );
   }
+}
+
+/// Aktifkan kunci hanya setelah verifikasi berhasil, supaya tidak terkunci di HP tanpa biometrik/PIN.
+class _SwitchKunci extends StatefulWidget {
+  const _SwitchKunci();
+  @override
+  State<_SwitchKunci> createState() => _SwitchKunciState();
+}
+
+class _SwitchKunciState extends State<_SwitchKunci> {
+  bool? on;
+
+  @override
+  void initState() {
+    super.initState();
+    kunciAktif().then((v) => mounted ? setState(() => on = v) : null);
+  }
+
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+    secondary: Icon(Icons.fingerprint, color: C.text),
+    title: Text('Kunci aplikasi', style: TextStyle(color: C.text)),
+    subtitle: Text(
+      'Sidik jari, Face ID, atau PIN HP',
+      style: TextStyle(color: C.muted),
+    ),
+    value: on ?? false,
+    onChanged: on == null
+        ? null
+        : (v) async {
+            if (!await verifikasi()) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Verifikasi gagal atau HP belum punya kunci layar',
+                    ),
+                  ),
+                );
+              }
+              return;
+            }
+            await setKunci(v);
+            if (mounted) setState(() => on = v);
+          },
+  );
+}
+
+/// Chip filter dengan menu pilihan; "Semua" mengosongkan filter.
+class _Saring<T extends Object> extends StatelessWidget {
+  final String label;
+  final bool aktif;
+  final Map<T, String> pilihan;
+  final ValueChanged<T?> onPilih;
+  const _Saring({
+    required this.label,
+    required this.aktif,
+    required this.pilihan,
+    required this.onPilih,
+  });
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<Object>(
+    tooltip: 'Saring $label',
+    onSelected: (v) => onPilih(v == '' ? null : v as T),
+    itemBuilder: (_) => [
+      const PopupMenuItem(value: '', child: Text('Semua')),
+      for (final e in pilihan.entries)
+        PopupMenuItem(value: e.key, child: Text(e.value)),
+    ],
+    child: Chip(
+      label: Text('$label ▾'),
+      backgroundColor: aktif ? C.btn : C.card,
+      side: BorderSide.none,
+      shape: const StadiumBorder(),
+      labelStyle: TextStyle(
+        color: aktif ? C.onBtn : C.text,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
 }
