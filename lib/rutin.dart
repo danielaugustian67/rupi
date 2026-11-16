@@ -66,60 +66,64 @@ class _RutinPageState extends State<RutinPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      backgroundColor: C.bg,
-      title: const Text(
-        'Transaksi rutin',
-        style: TextStyle(fontWeight: FontWeight.w800),
+  Widget build(BuildContext context) => lebarMaks(
+    Scaffold(
+      appBar: AppBar(
+        backgroundColor: C.bg,
+        title: const Text(
+          'Transaksi rutin',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
       ),
-    ),
-    body: loading
-        ? const Center(child: CircularProgressIndicator())
-        : rows.isEmpty
-        ? Padding(
-            padding: const EdgeInsets.all(32),
-            child: Text(
-              'Belum ada. Saat menambah transaksi, aktifkan "Ulangi tiap bulan" '
-              'untuk tagihan, langganan, atau gaji.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: C.muted),
-            ),
-          )
-        : ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              for (final r in rows)
-                Card(
-                  color: C.card,
-                  elevation: 0,
-                  child: ListTile(
-                    leading: const Icon(Icons.repeat),
-                    title: Text('${r['toko']}'),
-                    subtitle: Text(
-                      'Tiap tanggal ${r['hari']} · berikutnya ${r['berikut']}',
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${r['tipe'] == 'masuk' ? '▲' : '▼'} ${rp(r['jumlah'] as num)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: r['tipe'] == 'masuk' ? C.income : C.expense,
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : rows.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.all(32),
+              child: Text(
+                'Belum ada. Saat menambah transaksi, aktifkan "Ulangi tiap bulan" '
+                'untuk tagihan, langganan, atau gaji.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: C.muted),
+              ),
+            )
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                for (final r in rows)
+                  Card(
+                    color: C.card,
+                    elevation: 0,
+                    child: ListTile(
+                      leading: const Icon(Icons.repeat),
+                      title: Text('${r['toko']}'),
+                      subtitle: Text(
+                        'Tiap tanggal ${r['hari']} · berikutnya ${r['berikut']}',
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${r['tipe'] == 'masuk' ? '▲' : '▼'} ${rp(r['jumlah'] as num)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: r['tipe'] == 'masuk'
+                                  ? C.income
+                                  : C.expense,
+                            ),
                           ),
-                        ),
-                        IconButton(
-                          tooltip: 'Hentikan',
-                          icon: const Icon(Icons.close),
-                          onPressed: () => _hapus(r),
-                        ),
-                      ],
+                          IconButton(
+                            tooltip: 'Hentikan',
+                            icon: const Icon(Icons.close),
+                            onPressed: () => _hapus(r),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-            ],
-          ),
+              ],
+            ),
+    ),
   );
 }
 

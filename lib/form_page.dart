@@ -186,120 +186,128 @@ class _FormPageState extends State<FormPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: C.bg,
-        title: Text(
-          widget.row == null ? 'Transaksi baru' : 'Edit transaksi',
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        actions: [
-          if (widget.row != null)
-            IconButton(
-              tooltip: 'Hapus',
-              onPressed: busy ? null : _delete,
-              icon: const Icon(Icons.delete_outline),
-            ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          SegmentedButton<String>(
-            style: SegmentedButton.styleFrom(
-              selectedBackgroundColor: C.btn,
-              selectedForegroundColor: C.onBtn,
-            ),
-            segments: const [
-              ButtonSegment(value: 'keluar', label: Text('▼ Pengeluaran')),
-              ButtonSegment(value: 'masuk', label: Text('▲ Pemasukan')),
-            ],
-            selected: {tipe},
-            showSelectedIcon: false,
-            onSelectionChanged: (s) => setState(() => tipe = s.first),
+    return lebarMaks(
+      Scaffold(
+        appBar: AppBar(
+          backgroundColor: C.bg,
+          title: Text(
+            widget.row == null ? 'Transaksi baru' : 'Edit transaksi',
+            style: const TextStyle(fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: jumlah,
-            keyboardType: TextInputType.number,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-            decoration: const InputDecoration(labelText: 'Jumlah (Rp)'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: toko,
-            decoration: const InputDecoration(labelText: 'Toko / keterangan'),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            // key: dropdown ikut berubah saat AI mengganti kategori.
-            key: ValueKey(kategori),
-            initialValue: kategori,
-            decoration: const InputDecoration(labelText: 'Kategori'),
-            items: [
-              for (final k in kategoriList)
-                DropdownMenuItem(value: k, child: Text(k)),
-            ],
-            onChanged: (v) => setState(() => kategori = v ?? kategori),
-          ),
-          if (widget.akun.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            DropdownButtonFormField<Object?>(
-              key: ValueKey('akun$akunId'),
-              initialValue: akunId,
-              decoration: const InputDecoration(labelText: 'Kartu'),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Tanpa kartu')),
-                for (final a in widget.akun)
-                  DropdownMenuItem(value: a['id'], child: Text('${a['nama']}')),
-              ],
-              onChanged: (v) => setState(() => akunId = v),
-            ),
-          ],
-          const SizedBox(height: 12),
-          Material(
-            color: C.card,
-            borderRadius: BorderRadius.circular(16),
-            child: ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+          actions: [
+            if (widget.row != null)
+              IconButton(
+                tooltip: 'Hapus',
+                onPressed: busy ? null : _delete,
+                icon: const Icon(Icons.delete_outline),
               ),
-              title: const Text('Tanggal'),
-              subtitle: Text(ymd(tanggal)),
-              trailing: const Icon(Icons.calendar_today),
-              onTap: _pilihTanggal,
+          ],
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            SegmentedButton<String>(
+              style: SegmentedButton.styleFrom(
+                selectedBackgroundColor: C.btn,
+                selectedForegroundColor: C.onBtn,
+              ),
+              segments: const [
+                ButtonSegment(value: 'keluar', label: Text('▼ Pengeluaran')),
+                ButtonSegment(value: 'masuk', label: Text('▲ Pemasukan')),
+              ],
+              selected: {tipe},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) => setState(() => tipe = s.first),
             ),
-          ),
-          if (widget.row == null) ...[
+            const SizedBox(height: 16),
+            TextField(
+              controller: jumlah,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+              decoration: const InputDecoration(labelText: 'Jumlah (Rp)'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: toko,
+              decoration: const InputDecoration(labelText: 'Toko / keterangan'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              // key: dropdown ikut berubah saat AI mengganti kategori.
+              key: ValueKey(kategori),
+              initialValue: kategori,
+              decoration: const InputDecoration(labelText: 'Kategori'),
+              items: [
+                for (final k in kategoriList)
+                  DropdownMenuItem(value: k, child: Text(k)),
+              ],
+              onChanged: (v) => setState(() => kategori = v ?? kategori),
+            ),
+            if (widget.akun.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<Object?>(
+                key: ValueKey('akun$akunId'),
+                initialValue: akunId,
+                decoration: const InputDecoration(labelText: 'Kartu'),
+                items: [
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Text('Tanpa kartu'),
+                  ),
+                  for (final a in widget.akun)
+                    DropdownMenuItem(
+                      value: a['id'],
+                      child: Text('${a['nama']}'),
+                    ),
+                ],
+                onChanged: (v) => setState(() => akunId = v),
+              ),
+            ],
             const SizedBox(height: 12),
             Material(
               color: C.card,
               borderRadius: BorderRadius.circular(16),
-              child: SwitchListTile(
+              child: ListTile(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                secondary: const Icon(Icons.repeat),
-                title: const Text('Ulangi tiap bulan'),
-                subtitle: Text(
-                  'Dicatat otomatis tiap tanggal ${jadwalRutin(tanggal).hari}',
-                ),
-                value: ulang,
-                onChanged: (v) => setState(() => ulang = v),
+                title: const Text('Tanggal'),
+                subtitle: Text(ymd(tanggal)),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: _pilihTanggal,
               ),
             ),
-          ],
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: busy ? null : _save,
-            child: const Text('Simpan'),
-          ),
-          if (widget.sourceText.isNotEmpty)
-            ExpansionTile(
-              title: Text(widget.isReceipt ? 'Teks hasil scan' : 'Teks asli'),
-              children: [Text(widget.sourceText)],
+            if (widget.row == null) ...[
+              const SizedBox(height: 12),
+              Material(
+                color: C.card,
+                borderRadius: BorderRadius.circular(16),
+                child: SwitchListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  secondary: const Icon(Icons.repeat),
+                  title: const Text('Ulangi tiap bulan'),
+                  subtitle: Text(
+                    'Dicatat otomatis tiap tanggal ${jadwalRutin(tanggal).hari}',
+                  ),
+                  value: ulang,
+                  onChanged: (v) => setState(() => ulang = v),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: busy ? null : _save,
+              child: const Text('Simpan'),
             ),
-        ],
+            if (widget.sourceText.isNotEmpty)
+              ExpansionTile(
+                title: Text(widget.isReceipt ? 'Teks hasil scan' : 'Teks asli'),
+                children: [Text(widget.sourceText)],
+              ),
+          ],
+        ),
       ),
     );
   }

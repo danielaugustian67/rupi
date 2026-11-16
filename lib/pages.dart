@@ -1,4 +1,4 @@
-import 'dart:ui' show ImageFilter;
+import 'dart:ui' show ImageFilter, PointerDeviceKind;
 
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
@@ -371,6 +371,8 @@ class ShellState extends State<Shell> {
       .where((r) => akunId == null || r['akun_id'] == akunId)
       .fold(0, (s, r) => s + (r['jumlah'] as num).toInt());
 
+  void pilihTab(int i) => i == 2 ? openTambah() : setState(() => tab = i);
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -382,13 +384,22 @@ class ShellState extends State<Shell> {
     ];
     return Stack(
       children: [
-        Scaffold(
-          body: pages[tab],
-          bottomNavigationBar: _BottomNav(
-            index: tab,
-            onTap: (i) => i == 2 ? openTambah() : setState(() => tab = i),
+        // Layar lebar (web desktop/tablet): menu samping, konten tidak melebar.
+        if (MediaQuery.sizeOf(context).width >= 900)
+          Scaffold(
+            backgroundColor: C.bg,
+            body: Row(
+              children: [
+                _SideNav(index: tab, onTap: pilihTab),
+                Expanded(child: lebarMaks(pages[tab], maks: 820)),
+              ],
+            ),
+          )
+        else
+          Scaffold(
+            body: pages[tab],
+            bottomNavigationBar: _BottomNav(index: tab, onTap: pilihTab),
           ),
-        ),
         if (terkunci)
           Positioned.fill(
             child: LayarKunci(
@@ -402,6 +413,82 @@ class ShellState extends State<Shell> {
       ],
     );
   }
+}
+
+/// Navigasi samping untuk layar lebar; urutan item sama dengan _BottomNav.
+class _SideNav extends StatelessWidget {
+  final int index;
+  final ValueChanged<int> onTap;
+  const _SideNav({required this.index, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 232,
+    color: C.card,
+    padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+    child: SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  gradient: limeCard,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.savings_outlined, color: C.dark),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Rupi',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: C.text,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          FilledButton.icon(
+            onPressed: () => onTap(2),
+            icon: const Icon(Icons.add),
+            label: const Text('Tambah transaksi'),
+          ),
+          const SizedBox(height: 16),
+          for (final i in const [0, 1, 3, 4])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Material(
+                color: i == index ? C.btn : Colors.transparent,
+                borderRadius: BorderRadius.circular(14),
+                child: ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  selected: i == index,
+                  leading: Icon(
+                    _BottomNav.items[i].$1,
+                    color: i == index ? C.onBtn : C.muted,
+                  ),
+                  title: Text(
+                    _BottomNav.items[i].$2,
+                    style: TextStyle(
+                      color: i == index ? C.onBtn : C.text,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () => onTap(i),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _BottomNav extends StatelessWidget {
@@ -1769,20 +1856,30 @@ class _KartuPagerState extends State<_KartuPager> {
     return Column(
       children: [
         LayoutBuilder(
-          builder: (_, c) => SizedBox(
-            height: c.maxWidth / 1.62,
-            child: PageView(
-              controller: ctrl,
-              onPageChanged: (v) => setState(() => i = v),
-              children: [
-                for (final p in pages)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: p,
-                  ),
-              ],
-            ),
-          ),
+          builder: (_, c) {
+            // Di layar lebar kartu tidak ikut membesar.
+            final w = c.maxWidth.clamp(0.0, 520.0);
+            return SizedBox(
+              width: w,
+              height: w / 1.62,
+              // Web desktop: kartu bisa digeser dengan mouse juga.
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context)
+                    .copyWith(dragDevices: PointerDeviceKind.values.toSet()),
+                child: PageView(
+                  controller: ctrl,
+                  onPageChanged: (v) => setState(() => i = v),
+                  children: [
+                    for (final p in pages)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: p,
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 10),
         Semantics(
@@ -1791,14 +1888,25 @@ class _KartuPagerState extends State<_KartuPager> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               for (var k = 0; k < pages.length; k++)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: k == i ? 18 : 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: k == i ? C.lime : Colors.white24,
-                    borderRadius: BorderRadius.circular(99),
+                GestureDetector(
+                  onTap: () => ctrl.animateToPage(
+                    k,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    // Area klik lebih besar dari titiknya.
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 3,
+                      vertical: 6,
+                    ),
+                    width: k == i ? 18 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: k == i ? C.lime : Colors.white24,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
                   ),
                 ),
             ],

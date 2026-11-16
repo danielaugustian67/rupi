@@ -137,3 +137,15 @@ const limeCard = LinearGradient(
   colors: [Color(0xFFC4F2AE), Color(0xFF8EDC74), Color(0xFF6CC35A)],
   stops: [0, 0.55, 1],
 );
+
+/// Halaman form/daftar di layar lebar (web desktop): batasi lebar, tengahkan.
+Widget lebarMaks(Widget child, {double maks = 760}) => ColoredBox(
+  color: C.bg,
+  child: Align(
+    alignment: Alignment.topCenter,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maks),
+      child: child,
+    ),
+  ),
+);

@@ -1,3 +1,5 @@
+import 'dart:math' show max;
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -134,7 +136,10 @@ class _LoginPageState extends State<LoginPage> {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, box) => SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              // Layar lebar: form tetap selebar HP, di tengah.
+              padding: EdgeInsets.symmetric(
+                horizontal: max(24, (box.maxWidth - 440) / 2),
+              ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: box.maxHeight),
                 child: Column(

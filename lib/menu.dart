@@ -113,62 +113,64 @@ class _MenuListPageState extends State<MenuListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: C.bg,
-      appBar: AppBar(
+    return lebarMaks(
+      Scaffold(
         backgroundColor: C.bg,
-        title: const Text(
-          'Menu',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        appBar: AppBar(
+          backgroundColor: C.bg,
+          title: const Text(
+            'Menu',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: C.btn,
-        foregroundColor: C.onBtn,
-        onPressed: () async {
-          final m = await formMenu(context);
-          if (m != null) {
-            await load();
-            if (mounted) await _buka(m);
-          }
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Menu baru'),
-      ),
-      body: RefreshIndicator(
-        onRefresh: load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-          children: [
-            if (kode != null) _KodeCard(kode: kode!),
-            const SizedBox(height: 14),
-            if (loading)
-              const Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: TypingDots(color: C.green)),
-              )
-            else if (menus.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(
-                  'Belum ada menu. Buat sendiri untuk tagihan, tabungan, '
-                  'pinjaman, atau apa saja.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: C.muted),
-                ),
-              )
-            else
-              for (final (i, m) in menus.indexed)
-                FadeIn(
-                  key: ValueKey(m['id']),
-                  index: i,
-                  child: _MenuTile(
-                    menu: m,
-                    items: items[(m['id'] as num).toInt()] ?? const [],
-                    onTap: () => _buka(m),
+        floatingActionButton: FloatingActionButton.extended(
+          backgroundColor: C.btn,
+          foregroundColor: C.onBtn,
+          onPressed: () async {
+            final m = await formMenu(context);
+            if (m != null) {
+              await load();
+              if (mounted) await _buka(m);
+            }
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Menu baru'),
+        ),
+        body: RefreshIndicator(
+          onRefresh: load,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+            children: [
+              if (kode != null) _KodeCard(kode: kode!),
+              const SizedBox(height: 14),
+              if (loading)
+                const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: TypingDots(color: C.green)),
+                )
+              else if (menus.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Text(
+                    'Belum ada menu. Buat sendiri untuk tagihan, tabungan, '
+                    'pinjaman, atau apa saja.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: C.muted),
                   ),
-                ),
-          ],
+                )
+              else
+                for (final (i, m) in menus.indexed)
+                  FadeIn(
+                    key: ValueKey(m['id']),
+                    index: i,
+                    child: _MenuTile(
+                      menu: m,
+                      items: items[(m['id'] as num).toInt()] ?? const [],
+                      onTap: () => _buka(m),
+                    ),
+                  ),
+            ],
+          ),
         ),
       ),
     );
@@ -755,125 +757,127 @@ class _MenuPageState extends State<MenuPage> {
     final lunasOn = menu['pakai_lunas'] == true;
     final target = menu['target'] as num?;
     final p = target == null ? null : (s.total / target).clamp(0, 1).toDouble();
-    return Scaffold(
-      backgroundColor: C.bg,
-      appBar: AppBar(
+    return lebarMaks(
+      Scaffold(
         backgroundColor: C.bg,
-        title: Text(
-          '${menu['nama']}',
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Teman',
-            icon: const Icon(Icons.group_add_outlined),
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: C.bg,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        appBar: AppBar(
+          backgroundColor: C.bg,
+          title: Text(
+            '${menu['nama']}',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'Teman',
+              icon: const Icon(Icons.group_add_outlined),
+              onPressed: () => showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: C.bg,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                ),
+                builder: (_) => _Anggota(menu: menu, pemilik: pemilik),
               ),
-              builder: (_) => _Anggota(menu: menu, pemilik: pemilik),
             ),
-          ),
-          PopupMenuButton<String>(
-            tooltip: 'Lainnya',
-            onSelected: (v) => v == 'ubah' ? _ubahMenu() : _hapusMenu(),
-            itemBuilder: (_) => [
-              if (pemilik)
-                const PopupMenuItem(value: 'ubah', child: Text('Ubah menu')),
-              PopupMenuItem(
-                value: 'hapus',
-                child: Text(pemilik ? 'Hapus menu' : 'Keluar dari menu'),
-              ),
-            ],
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: C.btn,
-        foregroundColor: C.onBtn,
-        onPressed: () => _item(),
-        icon: const Icon(Icons.add),
-        label: const Text('Tambah'),
-      ),
-      body: RefreshIndicator(
-        onRefresh: load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: limeCard,
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    lunasOn ? 'Belum lunas' : 'Total',
-                    style: const TextStyle(color: Color(0xFF24361F)),
-                  ),
-                  AnimatedRp(
-                    lunasOn ? s.sisa : s.total,
-                    style: const TextStyle(
-                      color: C.dark,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  if (lunasOn)
+            PopupMenuButton<String>(
+              tooltip: 'Lainnya',
+              onSelected: (v) => v == 'ubah' ? _ubahMenu() : _hapusMenu(),
+              itemBuilder: (_) => [
+                if (pemilik)
+                  const PopupMenuItem(value: 'ubah', child: Text('Ubah menu')),
+                PopupMenuItem(
+                  value: 'hapus',
+                  child: Text(pemilik ? 'Hapus menu' : 'Keluar dari menu'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          backgroundColor: C.btn,
+          foregroundColor: C.onBtn,
+          onPressed: () => _item(),
+          icon: const Icon(Icons.add),
+          label: const Text('Tambah'),
+        ),
+        body: RefreshIndicator(
+          onRefresh: load,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: limeCard,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      'Lunas ${rp(s.lunas)} dari ${rp(s.total)}',
+                      lunasOn ? 'Belum lunas' : 'Total',
                       style: const TextStyle(color: Color(0xFF24361F)),
                     ),
-                  if (p != null) ...[
-                    const SizedBox(height: 10),
-                    AnimatedBar(value: p, color: C.dark),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${(p * 100).floor()}% dari target ${rp(target!)}',
+                    AnimatedRp(
+                      lunasOn ? s.sisa : s.total,
                       style: const TextStyle(
-                        color: Color(0xFF24361F),
-                        fontSize: 12,
+                        color: C.dark,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
+                    if (lunasOn)
+                      Text(
+                        'Lunas ${rp(s.lunas)} dari ${rp(s.total)}',
+                        style: const TextStyle(color: Color(0xFF24361F)),
+                      ),
+                    if (p != null) ...[
+                      const SizedBox(height: 10),
+                      AnimatedBar(value: p, color: C.dark),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${(p * 100).floor()}% dari target ${rp(target!)}',
+                        style: const TextStyle(
+                          color: Color(0xFF24361F),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-            if (loading)
-              const Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: TypingDots(color: C.green)),
-              )
-            else if (items.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(
-                  'Belum ada isi. Ketuk Tambah, atau sebut nama menu ini saat '
-                  'mengetik di tombol + Beranda.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: C.muted),
-                ),
-              )
-            else
-              for (final (n, i) in items.indexed)
-                FadeIn(
-                  key: ValueKey(i['id']),
-                  index: n,
-                  child: _ItemTile(
-                    item: i,
-                    menu: menu,
-                    oleh: oleh(i),
-                    onTap: () => _item(i),
-                    onCek: lunasOn ? () => _toggleLunas(i) : null,
+              const SizedBox(height: 14),
+              if (loading)
+                const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: TypingDots(color: C.green)),
+                )
+              else if (items.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Text(
+                    'Belum ada isi. Ketuk Tambah, atau sebut nama menu ini saat '
+                    'mengetik di tombol + Beranda.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: C.muted),
                   ),
-                ),
-          ],
+                )
+              else
+                for (final (n, i) in items.indexed)
+                  FadeIn(
+                    key: ValueKey(i['id']),
+                    index: n,
+                    child: _ItemTile(
+                      item: i,
+                      menu: menu,
+                      oleh: oleh(i),
+                      onTap: () => _item(i),
+                      onCek: lunasOn ? () => _toggleLunas(i) : null,
+                    ),
+                  ),
+            ],
+          ),
         ),
       ),
     );
@@ -1272,149 +1276,151 @@ class _ItemFormState extends State<ItemForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: C.bg,
-        title: Text(
-          '${m['nama']}',
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        actions: [
-          if (widget.row != null)
-            IconButton(
-              tooltip: 'Hapus',
-              onPressed: busy ? null : _hapus,
-              icon: const Icon(Icons.delete_outline),
-            ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(
-            controller: nominal,
-            keyboardType: TextInputType.number,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-            decoration: const InputDecoration(labelText: 'Nominal (Rp)'),
+    return lebarMaks(
+      Scaffold(
+        appBar: AppBar(
+          backgroundColor: C.bg,
+          title: Text(
+            '${m['nama']}',
+            style: const TextStyle(fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: judul,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Judul'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: deskripsi,
-            maxLines: 3,
-            minLines: 1,
-            decoration: const InputDecoration(
-              labelText: 'Deskripsi (opsional)',
-            ),
-          ),
-          const SizedBox(height: 12),
-          _Pilih(
-            judul: 'Tanggal',
-            isi: ymd(tanggal),
-            ikon: Icons.calendar_today,
-            onTap: () async {
-              final d = await _tgl(tanggal);
-              if (d != null) setState(() => tanggal = d);
-            },
-          ),
-          if (m['pakai_tenggat'] == true) ...[
-            const SizedBox(height: 8),
-            _Pilih(
-              judul: 'Tenggat',
-              isi: tenggat == null ? 'Tidak ada' : ymd(tenggat!),
-              ikon: Icons.event_outlined,
-              onTap: () async {
-                final d = await _tgl(tenggat ?? DateTime.now());
-                if (d != null) setState(() => tenggat = d);
-              },
-              onClear: tenggat == null
-                  ? null
-                  : () => setState(() => tenggat = null),
-            ),
+          actions: [
+            if (widget.row != null)
+              IconButton(
+                tooltip: 'Hapus',
+                onPressed: busy ? null : _hapus,
+                icon: const Icon(Icons.delete_outline),
+              ),
           ],
-          if (m['pakai_lunas'] == true) ...[
-            const SizedBox(height: 8),
-            Material(
-              color: C.card,
-              borderRadius: BorderRadius.circular(16),
-              child: SwitchListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                value: lunas,
-                onChanged: (v) => setState(() => lunas = v),
-                title: const Text('Sudah lunas'),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            TextField(
+              controller: nominal,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+              decoration: const InputDecoration(labelText: 'Nominal (Rp)'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: judul,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(labelText: 'Judul'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: deskripsi,
+              maxLines: 3,
+              minLines: 1,
+              decoration: const InputDecoration(
+                labelText: 'Deskripsi (opsional)',
               ),
             ),
-          ],
-          if (m['pakai_foto'] == true) ...[
             const SizedBox(height: 12),
-            if (fotoBaru != null || fotoUrl != null)
-              GestureDetector(
-                onTap: fotoUrl == null || fotoBaru != null
+            _Pilih(
+              judul: 'Tanggal',
+              isi: ymd(tanggal),
+              ikon: Icons.calendar_today,
+              onTap: () async {
+                final d = await _tgl(tanggal);
+                if (d != null) setState(() => tanggal = d);
+              },
+            ),
+            if (m['pakai_tenggat'] == true) ...[
+              const SizedBox(height: 8),
+              _Pilih(
+                judul: 'Tenggat',
+                isi: tenggat == null ? 'Tidak ada' : ymd(tenggat!),
+                ikon: Icons.event_outlined,
+                onTap: () async {
+                  final d = await _tgl(tenggat ?? DateTime.now());
+                  if (d != null) setState(() => tenggat = d);
+                },
+                onClear: tenggat == null
                     ? null
-                    : () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          fullscreenDialog: true,
-                          builder: (_) => _FotoPenuh(url: fotoUrl!),
-                        ),
-                      ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: fotoBaru != null
-                      ? FutureBuilder(
-                          future: fotoBaru!.readAsBytes(),
-                          builder: (_, s) => s.hasData
-                              ? Image.memory(
-                                  s.data!,
-                                  height: 220,
-                                  fit: BoxFit.cover,
-                                )
-                              : const SizedBox(height: 220),
-                        )
-                      : Semantics(
-                          label: 'Foto lampiran, ketuk untuk perbesar',
-                          child: Image.network(
-                            fotoUrl!,
-                            height: 220,
-                            fit: BoxFit.cover,
+                    : () => setState(() => tenggat = null),
+              ),
+            ],
+            if (m['pakai_lunas'] == true) ...[
+              const SizedBox(height: 8),
+              Material(
+                color: C.card,
+                borderRadius: BorderRadius.circular(16),
+                child: SwitchListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  value: lunas,
+                  onChanged: (v) => setState(() => lunas = v),
+                  title: const Text('Sudah lunas'),
+                ),
+              ),
+            ],
+            if (m['pakai_foto'] == true) ...[
+              const SizedBox(height: 12),
+              if (fotoBaru != null || fotoUrl != null)
+                GestureDetector(
+                  onTap: fotoUrl == null || fotoBaru != null
+                      ? null
+                      : () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            fullscreenDialog: true,
+                            builder: (_) => _FotoPenuh(url: fotoUrl!),
                           ),
                         ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: fotoBaru != null
+                        ? FutureBuilder(
+                            future: fotoBaru!.readAsBytes(),
+                            builder: (_, s) => s.hasData
+                                ? Image.memory(
+                                    s.data!,
+                                    height: 220,
+                                    fit: BoxFit.cover,
+                                  )
+                                : const SizedBox(height: 220),
+                          )
+                        : Semantics(
+                            label: 'Foto lampiran, ketuk untuk perbesar',
+                            child: Image.network(
+                              fotoUrl!,
+                              height: 220,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                  ),
                 ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pilihFoto(ImageSource.camera),
+                      icon: const Icon(Icons.photo_camera_outlined),
+                      label: const Text('Kamera'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pilihFoto(ImageSource.gallery),
+                      icon: const Icon(Icons.photo_outlined),
+                      label: const Text('Galeri'),
+                    ),
+                  ),
+                ],
               ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pilihFoto(ImageSource.camera),
-                    icon: const Icon(Icons.photo_camera_outlined),
-                    label: const Text('Kamera'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pilihFoto(ImageSource.gallery),
-                    icon: const Icon(Icons.photo_outlined),
-                    label: const Text('Galeri'),
-                  ),
-                ),
-              ],
+            ],
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: busy ? null : _save,
+              child: const Text('Simpan'),
             ),
           ],
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: busy ? null : _save,
-            child: const Text('Simpan'),
-          ),
-        ],
+        ),
       ),
     );
   }
