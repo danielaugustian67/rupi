@@ -21,6 +21,14 @@ Future<void> tunggu(
   throw TestFailure('Tidak muncul dalam ${batas.inSeconds} detik: $f');
 }
 
+/// Tunggu sampai hilang (setelah hapus ke server), maks 20 detik.
+Future<void> hilang(WidgetTester t, Finder f) async {
+  for (var k = 0; k < 80 && f.evaluate().isNotEmpty; k++) {
+    await t.pump(const Duration(milliseconds: 250));
+  }
+  expect(f, findsNothing);
+}
+
 Future<void> ketuk(WidgetTester t, Finder f) async {
   await tunggu(t, f);
   await t.ensureVisible(f.first);
@@ -107,8 +115,7 @@ void main() {
     await tunggu(t, find.text(nama));
     await ketuk(t, find.byTooltip('Hentikan'));
     await ketuk(t, find.widgetWithText(TextButton, 'Hentikan'));
-    await t.pump(const Duration(seconds: 2));
-    expect(find.text(nama), findsNothing);
+    await hilang(t, find.text(nama));
     await t.pageBack();
     await t.pump(const Duration(seconds: 1));
 
@@ -185,8 +192,7 @@ void main() {
     await ketuk(t, find.text(namaAi));
     await ketuk(t, find.byTooltip('Hapus'));
     await ketuk(t, find.widgetWithText(TextButton, 'Hapus'));
-    await t.pump(const Duration(seconds: 2));
-    expect(find.text(namaAi), findsNothing);
+    await hilang(t, find.text(namaAi));
 
     // 10. Menu custom: buat, AI memasukkan item, ceklis lunas, hapus
     final namaMenu = 'Bill E2E ${DateTime.now().millisecondsSinceEpoch % 1000}';
@@ -210,6 +216,15 @@ void main() {
     await t.enterText(find.widgetWithText(TextField, 'Judul'), 'Pulsa');
     await ketuk(t, find.widgetWithText(FilledButton, 'Simpan'));
     await tunggu(t, find.text('Pulsa'));
+    // Bayar sebagian: sisa utang berkurang
+    await ketuk(t, find.text('Pulsa'));
+    await ketuk(t, find.text('Bayar sebagian'));
+    await t.enterText(find.widgetWithText(TextField, 'Dibayar'), '25000');
+    await ketuk(t, find.text('Catat juga sebagai pengeluaran'));
+    await ketuk(t, find.widgetWithText(TextButton, 'Simpan'));
+    await tunggu(t, find.text('Dibayar Rp25.000 · sisa Rp50.000'));
+    await t.pageBack();
+    await tunggu(t, find.text('sisa Rp50.000'));
     // Ceklis lunas tanpa mencatat transaksi
     await ketuk(t, find.byTooltip('Tandai lunas'));
     await ketuk(t, find.text('Lunas saja'));
@@ -246,8 +261,7 @@ void main() {
     await ketuk(t, find.byTooltip('Lainnya'));
     await ketuk(t, find.text('Hapus menu'));
     await ketuk(t, find.widgetWithText(TextButton, 'Hapus'));
-    await t.pump(const Duration(seconds: 2));
-    expect(find.text(namaMenu), findsNothing);
+    await hilang(t, find.text(namaMenu));
     await t.pageBack();
     await t.pump(const Duration(seconds: 1));
 
@@ -292,8 +306,7 @@ void main() {
     await ketuk(t, find.byIcon(Icons.format_list_bulleted));
     await ketuk(t, find.text('Transfer ke $kartu2'));
     await ketuk(t, find.widgetWithText(TextButton, 'Hapus transfer'));
-    await t.pump(const Duration(seconds: 2));
-    expect(find.text('Transfer dari $kartu'), findsNothing);
+    await hilang(t, find.text('Transfer dari $kartu'));
 
     for (final k in [kartu, kartu2]) {
       await geserKe(find.text('$k'));
@@ -303,8 +316,7 @@ void main() {
       await tunggu(t, find.text('Ubah kartu'));
       await ketuk(t, find.widgetWithText(TextButton, 'Hapus'));
       await ketuk(t, find.widgetWithText(TextButton, 'Hapus').last);
-      await t.pump(const Duration(seconds: 2));
-      expect(find.text('$k'), findsNothing);
+      await hilang(t, find.text('$k'));
     }
 
     // 12. Chat AI menjawab

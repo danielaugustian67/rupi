@@ -39,3 +39,5 @@ create policy "own rows" on trx for all
 -- rutin(toko, kategori, tipe, jumlah, akun_id, hari 1-28, berikut): transaksi bulanan.
 --   rpc jalankan_rutin() (security invoker) mencatat semua yang sudah jatuh tempo, termasuk
 --   bulan yang terlewat, lalu memajukan `berikut`. Dipanggil app setiap memuat data.
+-- menu_item.fotos text[] (maks 10, migrasi menu_item_fotos); kolom lama `foto` diisi fotos[1] untuk app versi lama.
+-- menu_item.dibayar bigint >= 0 (migrasi menu_item_dibayar): cicilan; sisa = nominal - dibayar, lunas otomatis saat penuh.

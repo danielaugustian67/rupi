@@ -167,4 +167,16 @@ void main() {
     expect(csv, contains('1,"x,y",'));
     expect(csv, contains('2,,"{""k"":1}"'));
   });
+
+  test('cicilan mengurangi sisa, lunas dihitung penuh', () {
+    final r = ringkasItem([
+      {'nominal': 2000000, 'lunas': false, 'dibayar': 500000},
+      {'nominal': 300000, 'lunas': true, 'dibayar': 0},
+      {'nominal': 100000, 'lunas': false, 'dibayar': 999999}, // tidak lebih dari nominal
+      {'nominal': 50000, 'lunas': false}, // data lama tanpa kolom dibayar
+    ]);
+    expect(r.total, 2450000);
+    expect(r.lunas, 500000 + 300000 + 100000);
+    expect(r.sisa, 1500000 + 50000);
+  });
 }

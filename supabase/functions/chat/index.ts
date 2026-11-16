@@ -19,7 +19,9 @@ const json = (body: unknown, status = 200) =>
 const rp = (n: number) => "Rp" + Math.round(n).toLocaleString("id-ID");
 
 type Trx = { toko: string; kategori: string; tipe: string; jumlah: number; tanggal: string; transfer: string | null };
-type Item = { judul: string; nominal: number; deskripsi: string | null; tanggal: string; tenggat: string | null; lunas: boolean };
+type Item = { judul: string; nominal: number; deskripsi: string | null; tanggal: string; tenggat: string | null; lunas: boolean; dibayar: number };
+// Sudah dibayar: penuh kalau lunas, selain itu cicilan yang tercatat.
+const bayar = (i: Item) => (i.lunas ? i.nominal : Math.min(i.dibayar ?? 0, i.nominal));
 type Menu = {
   nama: string; pakai_lunas: boolean; pakai_tenggat: boolean; target: number | null; menu_item: Item[];
 };
@@ -55,13 +57,13 @@ function ringkas(trx: Trx[], menus: Menu[], akun: Akun[], anggaran: Anggaran[], 
   for (const m of menus) {
     const items = m.menu_item ?? [];
     const total = items.reduce((a, i) => a + i.nominal, 0);
-    const lunas = items.filter((i) => i.lunas).reduce((a, i) => a + i.nominal, 0);
+    const lunas = items.reduce((a, i) => a + bayar(i), 0);
     lines.push(`- Menu "${m.nama}": ${items.length} item, total ${rp(total)}` +
       (m.pakai_lunas ? `, lunas ${rp(lunas)}, belum lunas ${rp(total - lunas)}` : "") +
       (m.target ? `, target ${rp(m.target)}` : ""));
     for (const i of items.slice(0, 15)) {
       lines.push(`  · ${i.tanggal} ${i.judul} ${rp(i.nominal)}` +
-        (m.pakai_lunas ? (i.lunas ? " [lunas]" : " [belum]") : "") +
+        (m.pakai_lunas ? (i.lunas ? " [lunas]" : bayar(i) > 0 ? ` [dicicil ${rp(bayar(i))}, sisa ${rp(i.nominal - bayar(i))}]` : " [belum]") : "") +
         (m.pakai_tenggat && i.tenggat ? ` tempo ${i.tenggat}` : "") +
         (i.deskripsi ? ` (${i.deskripsi.slice(0, 80)})` : ""));
     }
@@ -117,7 +119,7 @@ Deno.serve(async (req) => {
   const [r1, r2, r3, r4] = await Promise.all([
     userDb.from("trx").select("toko,kategori,tipe,jumlah,tanggal,transfer").gte("tanggal", from)
       .order("tanggal", { ascending: false }).limit(500),
-    userDb.from("menu").select("nama,pakai_lunas,pakai_tenggat,target,menu_item(judul,nominal,deskripsi,tanggal,tenggat,lunas)")
+    userDb.from("menu").select("nama,pakai_lunas,pakai_tenggat,target,menu_item(judul,nominal,deskripsi,tanggal,tenggat,lunas,dibayar)")
       .limit(30),
     userDb.from("akun_v").select("nama,saldo").limit(30),
     userDb.from("anggaran").select("kategori,batas").limit(30),

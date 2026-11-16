@@ -1,3 +1,6 @@
+import 'dart:math' show max, min;
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -27,13 +30,19 @@ const ikonMenu = <String, IconData>{
 
 IconData ikonDari(Row_ m) => ikonMenu[m['ikon']] ?? Icons.folder_outlined;
 
-/// Total, lunas, sisa dari daftar item.
+/// Sudah dibayar dari satu item: penuh kalau lunas, selain itu cicilan yang tercatat.
+int dibayarItem(Row_ i) {
+  final n = (i['nominal'] as num).toInt();
+  if (i['lunas'] == true) return n;
+  return min(((i['dibayar'] as num?) ?? 0).toInt(), n);
+}
+
+/// Total, lunas (termasuk cicilan), sisa dari daftar item.
 ({int total, int lunas, int sisa}) ringkasItem(List<Row_> items) {
   var total = 0, lunas = 0;
   for (final i in items) {
-    final n = (i['nominal'] as num).toInt();
-    total += n;
-    if (i['lunas'] == true) lunas += n;
+    total += (i['nominal'] as num).toInt();
+    lunas += dibayarItem(i);
   }
   return (total: total, lunas: lunas, sisa: total - lunas);
 }
@@ -82,7 +91,7 @@ class _MenuListPageState extends State<MenuListPage> {
     try {
       final r = await Future.wait<dynamic>([
         db.from('menu').select().order('created_at'),
-        db.from('menu_item').select('menu_id,nominal,lunas'),
+        db.from('menu_item').select('menu_id,nominal,lunas,dibayar'),
         db.rpc('kode_saya'),
       ]);
       final g = <int, List<Row_>>{};
@@ -664,7 +673,8 @@ class _MenuPageState extends State<MenuPage> {
         builder: (_) => ItemForm(menu: menu, row: row),
       ),
     );
-    if (ok == true) await load();
+    // Cicilan langsung tersimpan, jadi item lama selalu dimuat ulang.
+    if (ok == true || row != null) await load();
   }
 
   Future<void> _toggleLunas(Row_ i) async {
@@ -704,7 +714,10 @@ class _MenuPageState extends State<MenuPage> {
           'toko': '${i['judul']} (${menu['nama']})',
           'kategori': 'tagihan',
           'tipe': tipe,
-          'jumlah': i['nominal'],
+          // Yang sudah dicicil sudah tercatat sendiri; catat sisanya saja.
+          'jumlah':
+              (i['nominal'] as num) -
+              min(((i['dibayar'] as num?) ?? 0), i['nominal'] as num),
           'tanggal': ymd(DateTime.now()),
         });
         if (mounted) _toast(context, 'Lunas & tercatat di transaksi');
@@ -735,7 +748,7 @@ class _MenuPageState extends State<MenuPage> {
     if (!ok) return;
     try {
       if (pemilik) {
-        final fotos = items.map((i) => i['foto']).whereType<String>().toList();
+        final fotos = items.expand(_fotos).toList();
         if (fotos.isNotEmpty) await db.storage.from('lampiran').remove(fotos);
         await db.from('menu').delete().eq('id', id);
       } else {
@@ -966,17 +979,36 @@ class _ItemTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (item['foto'] != null)
+                if (_fotos(item).isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: Icon(Icons.image_outlined, size: 18, color: C.muted),
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.image_outlined, size: 18, color: C.muted),
+                        if (_fotos(item).length > 1)
+                          Text(
+                            ' ${_fotos(item).length}',
+                            style: TextStyle(color: C.muted, fontSize: 12),
+                          ),
+                      ],
+                    ),
                   ),
-                Text(
-                  rp(item['nominal'] as num),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: lunas ? C.muted : C.text,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      rp(item['nominal'] as num),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: lunas ? C.muted : C.text,
+                      ),
+                    ),
+                    if (!lunas && dibayarItem(item) > 0)
+                      Text(
+                        'sisa ${rp((item['nominal'] as num) - dibayarItem(item))}',
+                        style: TextStyle(color: C.expense, fontSize: 12),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -1170,34 +1202,79 @@ class _ItemFormState extends State<ItemForm> {
       DateTime.tryParse('${r['tanggal']}') ?? DateTime.now();
   late DateTime? tenggat = DateTime.tryParse('${r['tenggat']}');
   late bool lunas = r['lunas'] == true;
-  late String? foto = r['foto'];
-  XFile? fotoBaru;
-  String? fotoUrl;
+  late int dibayar = ((r['dibayar'] as num?) ?? 0).toInt();
+  late final fotos = _fotos(r).toList(); // path yang tersimpan
+  final url = <String, String>{}; // path -> signed url
+  final baru = <XFile>[];
+  final dibuang = <String>[]; // dihapus dari storage setelah simpan berhasil
   bool busy = false;
+  static const maksFoto = 10;
 
   Row_ get m => widget.menu;
 
   @override
   void initState() {
     super.initState();
-    if (foto != null) _urlFoto();
+    if (fotos.isNotEmpty) _urlFoto();
   }
 
   Future<void> _urlFoto() async {
     try {
-      final u = await db.storage.from('lampiran').createSignedUrl(foto!, 3600);
-      if (mounted) setState(() => fotoUrl = u);
+      final u = await db.storage.from('lampiran').createSignedUrls(fotos, 3600);
+      if (mounted) {
+        setState(() {
+          for (final x in u) {
+            url[x.path] = x.signedUrl;
+          }
+        });
+      }
     } catch (_) {}
   }
 
+  int get sisa => maksFoto - fotos.length - baru.length;
+
   Future<void> _pilihFoto(ImageSource src) async {
-    final f = await ImagePicker().pickImage(
-      source: src,
-      maxWidth: 1600,
-      imageQuality: 75,
-    );
-    if (f != null) setState(() => fotoBaru = f);
+    if (sisa <= 0) return _toast(context, 'Maksimal $maksFoto foto per item');
+    final p = ImagePicker();
+    final f = src == ImageSource.camera
+        ? [?await p.pickImage(source: src, maxWidth: 1600, imageQuality: 75)]
+        : await p.pickMultiImage(maxWidth: 1600, imageQuality: 75);
+    if (f.isEmpty || !mounted) return;
+    if (f.length > sisa) _toast(context, 'Hanya $sisa foto lagi yang muat');
+    setState(() => baru.addAll(f.take(sisa)));
   }
+
+  Future<String> _unggah(XFile f) async {
+    var bytes = await f.readAsBytes();
+    var e = f.name.split('.').last.toLowerCase();
+    try {
+      bytes = await keWebp(bytes);
+      e = 'webp';
+    } catch (_) {
+      // Gagal konversi (mis. browser lama): unggah file aslinya.
+      if (!['png', 'webp', 'heic'].contains(e)) e = 'jpg';
+    }
+    final path = '${m['id']}/${DateTime.now().microsecondsSinceEpoch}.$e';
+    await db.storage
+        .from('lampiran')
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: 'image/$e'),
+        );
+    return path;
+  }
+
+  void _lihat(int i) => Navigator.push(
+    context,
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => _FotoPenuh(
+        urls: [for (final f in fotos) url[f]].whereType<String>().toList(),
+        awal: i,
+      ),
+    ),
+  );
 
   Future<DateTime?> _tgl(DateTime awal) => showDatePicker(
     context: context,
@@ -1206,32 +1283,113 @@ class _ItemFormState extends State<ItemForm> {
     lastDate: DateTime.now().add(const Duration(days: 3650)),
   );
 
+  /// Bayar sebagian: sisa utang berkurang, lunas otomatis kalau sudah penuh.
+  Future<void> _bayar() async {
+    final total = parseNominal(nominal.text) ?? 0;
+    final sisaUtang = total - dibayar;
+    final ctrl = TextEditingController();
+    var catat = true;
+    final x = await showDialog<int>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          title: const Text('Catat pembayaran'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Sisa ${rp(sisaUtang)}', style: TextStyle(color: C.muted)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Dibayar',
+                  prefixText: 'Rp ',
+                ),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: catat,
+                onChanged: (v) => set(() => catat = v ?? true),
+                title: const Text('Catat juga sebagai pengeluaran'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () {
+                final v = parseNominal(ctrl.text) ?? 0;
+                if (v > 0) Navigator.pop(c, min(v, sisaUtang));
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (x == null || x <= 0) return;
+    final baruDibayar = dibayar + x;
+    final jadiLunas = baruDibayar >= total;
+    setState(() => busy = true);
+    try {
+      await db
+          .from('menu_item')
+          .update({'dibayar': baruDibayar, 'lunas': jadiLunas})
+          .eq('id', widget.row!['id']);
+      if (catat) {
+        await db.from('trx').insert({
+          'toko': '${judul.text.trim()} (${m['nama']})',
+          'kategori': 'tagihan',
+          'tipe': 'keluar',
+          'jumlah': x,
+          'tanggal': ymd(DateTime.now()),
+        });
+      }
+      if (!mounted) return;
+      setState(() {
+        dibayar = baruDibayar;
+        lunas = jadiLunas;
+        busy = false;
+      });
+      _toast(
+        context,
+        jadiLunas ? 'Lunas!' : 'Tercatat, sisa ${rp(total - baruDibayar)}',
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => busy = false);
+        _toast(context, 'Gagal: ${_pesan(e)}');
+      }
+    }
+  }
+
   Future<void> _save() async {
     final n = parseNominal(nominal.text) ?? 0;
     if (judul.text.trim().isEmpty) return _toast(context, 'Isi judulnya');
     setState(() => busy = true);
     try {
-      String? path = foto;
-      if (fotoBaru != null) {
-        var bytes = await fotoBaru!.readAsBytes();
-        var e = fotoBaru!.name.split('.').last.toLowerCase();
-        try {
-          bytes = await keWebp(bytes);
-          e = 'webp';
-        } catch (_) {
-          // Gagal konversi (mis. browser lama): unggah file aslinya.
-          if (!['png', 'webp', 'heic'].contains(e)) e = 'jpg';
+      final semua = [...fotos];
+      final naik = <String>[];
+      try {
+        for (final f in baru) {
+          naik.add(await _unggah(f));
         }
-        path = '${m['id']}/${DateTime.now().microsecondsSinceEpoch}.$e';
-        await db.storage
-            .from('lampiran')
-            .uploadBinary(
-              path,
-              bytes,
-              fileOptions: FileOptions(contentType: 'image/$e'),
-            );
-        if (foto != null) await db.storage.from('lampiran').remove([foto!]);
+      } catch (_) {
+        // Jangan tinggalkan file yatim kalau sebagian gagal.
+        if (naik.isNotEmpty) {
+          try {
+            await db.storage.from('lampiran').remove(naik);
+          } catch (_) {}
+        }
+        rethrow;
       }
+      semua.addAll(naik);
       final data = {
         'menu_id': m['id'],
         'judul': judul.text.trim(),
@@ -1242,11 +1400,19 @@ class _ItemFormState extends State<ItemForm> {
         'tanggal': ymd(tanggal),
         'tenggat': tenggat == null ? null : ymd(tenggat!),
         'lunas': lunas,
-        'foto': path,
+        'dibayar': dibayar,
+        'fotos': semua,
+        // Kolom lama tetap diisi foto pertama untuk app versi lama.
+        'foto': semua.isEmpty ? null : semua.first,
       };
       widget.row == null
           ? await db.from('menu_item').insert(data)
           : await db.from('menu_item').update(data).eq('id', widget.row!['id']);
+      if (dibuang.isNotEmpty) {
+        try {
+          await db.storage.from('lampiran').remove(dibuang);
+        } catch (_) {} // file yatim lebih baik daripada gagal simpan
+      }
     } catch (e) {
       // Form tetap terbuka supaya isian tidak hilang.
       if (mounted) {
@@ -1263,7 +1429,8 @@ class _ItemFormState extends State<ItemForm> {
     setState(() => busy = true);
     try {
       await db.from('menu_item').delete().eq('id', widget.row!['id']);
-      if (foto != null) await db.storage.from('lampiran').remove([foto!]);
+      final semua = [...fotos, ...dibuang];
+      if (semua.isNotEmpty) await db.storage.from('lampiran').remove(semua);
     } catch (e) {
       if (mounted) {
         setState(() => busy = false);
@@ -1356,41 +1523,85 @@ class _ItemFormState extends State<ItemForm> {
                   title: const Text('Sudah lunas'),
                 ),
               ),
+              if (widget.row != null && !lunas) ...[
+                const SizedBox(height: 8),
+                Builder(
+                  builder: (_) {
+                    final total = parseNominal(nominal.text) ?? 0;
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: C.card,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Dibayar ${rp(dibayar)} · sisa ${rp(max(0, total - dibayar))}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 8),
+                          LinearProgressIndicator(
+                            value: total <= 0
+                                ? 0
+                                : (dibayar / total).clamp(0, 1),
+                            minHeight: 8,
+                            borderRadius: BorderRadius.circular(99),
+                            color: C.green,
+                            backgroundColor: C.track,
+                          ),
+                          const SizedBox(height: 10),
+                          OutlinedButton.icon(
+                            onPressed: busy ? null : _bayar,
+                            icon: const Icon(Icons.account_balance_wallet_outlined),
+                            label: const Text('Bayar sebagian'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
             ],
             if (m['pakai_foto'] == true) ...[
               const SizedBox(height: 12),
-              if (fotoBaru != null || fotoUrl != null)
-                GestureDetector(
-                  onTap: fotoUrl == null || fotoBaru != null
-                      ? null
-                      : () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            fullscreenDialog: true,
-                            builder: (_) => _FotoPenuh(url: fotoUrl!),
+              Text(
+                'Foto (${fotos.length + baru.length}/$maksFoto)',
+                style: TextStyle(color: C.muted, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              if (fotos.isNotEmpty || baru.isNotEmpty)
+                SizedBox(
+                  height: 96,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (var k = 0; k < fotos.length; k++)
+                        _Thumb(
+                          label: 'Foto ${k + 1}, ketuk untuk perbesar',
+                          onTap: url[fotos[k]] == null ? null : () => _lihat(k),
+                          onHapus: () =>
+                              setState(() => dibuang.add(fotos.removeAt(k))),
+                          child: url[fotos[k]] == null
+                              ? const SizedBox()
+                              : Image.network(
+                                  url[fotos[k]]!,
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
+                      for (final f in baru)
+                        _Thumb(
+                          label: 'Foto baru',
+                          onHapus: () => setState(() => baru.remove(f)),
+                          child: FutureBuilder(
+                            future: f.readAsBytes(),
+                            builder: (_, s) => s.hasData
+                                ? Image.memory(s.data!, fit: BoxFit.cover)
+                                : const SizedBox(),
                           ),
                         ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: fotoBaru != null
-                        ? FutureBuilder(
-                            future: fotoBaru!.readAsBytes(),
-                            builder: (_, s) => s.hasData
-                                ? Image.memory(
-                                    s.data!,
-                                    height: 220,
-                                    fit: BoxFit.cover,
-                                  )
-                                : const SizedBox(height: 220),
-                          )
-                        : Semantics(
-                            label: 'Foto lampiran, ketuk untuk perbesar',
-                            child: Image.network(
-                              fotoUrl!,
-                              height: 220,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
+                    ],
                   ),
                 ),
               const SizedBox(height: 8),
@@ -1459,9 +1670,64 @@ class _Pilih extends StatelessWidget {
 }
 
 /// Foto lampiran layar penuh, bisa dicubit untuk zoom.
+Iterable<String> _fotos(Map item) => [
+  ...?(item['fotos'] as List?)?.cast<String>(),
+  // Item lama sebelum kolom fotos.
+  if ((item['fotos'] as List?)?.isEmpty ?? true)
+    if (item['foto'] is String) item['foto'] as String,
+];
+
+class _Thumb extends StatelessWidget {
+  final String label;
+  final Widget child;
+  final VoidCallback? onTap, onHapus;
+  const _Thumb({
+    required this.label,
+    required this.child,
+    this.onTap,
+    this.onHapus,
+  });
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(right: 8),
+    child: Stack(
+      children: [
+        Semantics(
+          label: label,
+          button: onTap != null,
+          child: GestureDetector(
+            onTap: onTap,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                width: 96,
+                height: 96,
+                color: C.track,
+                child: child,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 0,
+          right: 0,
+          child: IconButton(
+            tooltip: 'Hapus foto',
+            visualDensity: VisualDensity.compact,
+            style: IconButton.styleFrom(backgroundColor: Colors.black54),
+            onPressed: onHapus,
+            icon: const Icon(Icons.close, size: 16, color: Colors.white),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class _FotoPenuh extends StatelessWidget {
-  final String url;
-  const _FotoPenuh({required this.url});
+  final List<String> urls;
+  final int awal;
+  const _FotoPenuh({required this.urls, this.awal = 0});
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
@@ -1469,9 +1735,18 @@ class _FotoPenuh extends StatelessWidget {
       backgroundColor: Colors.black,
       foregroundColor: Colors.white,
     ),
-    body: InteractiveViewer(
-      maxScale: 5,
-      child: Center(child: Image.network(url)),
+    body: PageView(
+      controller: PageController(initialPage: awal),
+      // Web desktop: bisa digeser dengan mouse.
+      scrollBehavior: ScrollConfiguration.of(context)
+          .copyWith(dragDevices: PointerDeviceKind.values.toSet()),
+      children: [
+        for (final u in urls)
+          InteractiveViewer(
+            maxScale: 5,
+            child: Center(child: Image.network(u)),
+          ),
+      ],
     ),
   );
 }
