@@ -1135,140 +1135,143 @@ class _TambahSheetState extends State<TambahSheet> {
         16,
         24 + MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFC9CDC6),
-                  borderRadius: BorderRadius.circular(2),
+      // Scroll: saat keyboard muncul di layar pendek, isi sheet tidak muat.
+      child: SingleChildScrollView(
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC9CDC6),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'Tambah',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                gradient: limeCard,
-                borderRadius: BorderRadius.circular(22),
+              const SizedBox(height: 14),
+              const Text(
+                'Tambah',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Ketik bebas, AI yang isi',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: C.dark,
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: limeCard,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Ketik bebas, AI yang isi',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: C.dark,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.only(left: 16, right: 4),
-                    decoration: BoxDecoration(
-                      color: C.card,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: ctrl,
-                            autofocus: false,
-                            // iOS inline prediction menandai huruf awal (terlihat terblok).
-                            autocorrect: false,
-                            enableSuggestions: false,
-                            textInputAction: TextInputAction.send,
-                            onSubmitted: (_) => _kirim(),
-                            decoration: const InputDecoration(
-                              hintText: 'Ketik jumlah & keterangan',
-                              filled: false,
-                              border: InputBorder.none,
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.only(left: 16, right: 4),
+                      decoration: BoxDecoration(
+                        color: C.card,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: ctrl,
+                              autofocus: false,
+                              // iOS inline prediction menandai huruf awal (terlihat terblok).
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) => _kirim(),
+                              decoration: const InputDecoration(
+                                hintText: 'Ketik jumlah & keterangan',
+                                filled: false,
+                                border: InputBorder.none,
+                              ),
                             ),
                           ),
-                        ),
-                        IconButton(
-                          tooltip: dengar ? 'Berhenti merekam' : 'Bicara',
-                          onPressed: _mic,
-                          icon: dengar
-                              ? TypingDots(color: C.expense, size: 6)
-                              : const Icon(Icons.mic_none, color: C.dark),
-                        ),
-                        IconButton.filled(
-                          tooltip: 'Kirim',
-                          style: IconButton.styleFrom(
-                            backgroundColor: C.dark,
-                            minimumSize: const Size(44, 44),
+                          IconButton(
+                            tooltip: dengar ? 'Berhenti merekam' : 'Bicara',
+                            onPressed: _mic,
+                            icon: dengar
+                                ? TypingDots(color: C.expense, size: 6)
+                                : const Icon(Icons.mic_none, color: C.dark),
                           ),
-                          onPressed: _kirim,
-                          icon: const Icon(
-                            Icons.arrow_forward,
-                            color: Colors.white,
+                          IconButton.filled(
+                            tooltip: 'Kirim',
+                            style: IconButton.styleFrom(
+                              backgroundColor: C.dark,
+                              minimumSize: const Size(44, 44),
+                            ),
+                            onPressed: _kirim,
+                            icon: const Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.6,
+                children: [
+                  if (!kIsWeb) ...[
+                    _Opt(
+                      'Scan struk',
+                      'Total terisi otomatis',
+                      Icons.document_scanner_outlined,
+                      widget.onCamera,
+                      dark: true,
+                    ),
+                    _Opt(
+                      'Dari galeri',
+                      'Foto struk yang ada',
+                      Icons.photo_outlined,
+                      widget.onGallery,
+                    ),
+                  ],
+                  _Opt(
+                    'Manual',
+                    'Isi form sendiri',
+                    Icons.edit_outlined,
+                    widget.onManual,
+                  ),
+                  _Opt(
+                    'Menu',
+                    'Bill, tabungan, dll',
+                    Icons.dashboard_customize_outlined,
+                    widget.onMenu,
+                  ),
+                  _Opt(
+                    'Transfer',
+                    'Antar kartu',
+                    Icons.swap_horiz,
+                    widget.onTransfer,
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.6,
-              children: [
-                if (!kIsWeb) ...[
-                  _Opt(
-                    'Scan struk',
-                    'Total terisi otomatis',
-                    Icons.document_scanner_outlined,
-                    widget.onCamera,
-                    dark: true,
-                  ),
-                  _Opt(
-                    'Dari galeri',
-                    'Foto struk yang ada',
-                    Icons.photo_outlined,
-                    widget.onGallery,
-                  ),
-                ],
-                _Opt(
-                  'Manual',
-                  'Isi form sendiri',
-                  Icons.edit_outlined,
-                  widget.onManual,
-                ),
-                _Opt(
-                  'Menu',
-                  'Bill, tabungan, dll',
-                  Icons.dashboard_customize_outlined,
-                  widget.onMenu,
-                ),
-                _Opt(
-                  'Transfer',
-                  'Antar kartu',
-                  Icons.swap_horiz,
-                  widget.onTransfer,
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
